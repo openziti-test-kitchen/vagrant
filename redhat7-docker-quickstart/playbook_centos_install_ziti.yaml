@@ -1,0 +1,39 @@
+- name: Install Ziti
+  gather_facts: No
+  hosts: default
+  become: no
+
+  tasks:
+    - ansible.builtin.pip:
+        name: requests
+        state: latest
+      become: yes
+    - community.docker.docker_network:
+        name: myFirstZitiNetwork
+        driver: bridge
+        # ipam_config:
+        #   - subnet:
+    - ansible.builtin.file:
+        path: /home/vagrant/docker-volume/myFirstZitiNetwork
+        state: directory
+    - ansible.builtin.copy:
+        dest: /home/vagrant/docker-volume/myFirstZitiNetwork/ziti.env
+        content: |
+          #ziti.env file
+    - community.docker.docker_container:
+        name: ziti-controller
+        image: openziti/quickstart:latest
+        state: started
+        restart_policy: always
+        volumes:
+          - /home/vagrant/docker-volume/myFirstZitiNetwork:/persistent/pki
+          - /home/vagrant/docker-volume/myFirstZitiNetwork/ziti.env:/persistent/ziti.env
+        env_file: /home/vagrant/docker-volume/myFirstZitiNetwork/ziti.env
+        networks:
+          - name: myFirstZitiNetwork
+            aliases:
+              - ziti-controller
+              - ziti-edge-controller
+        ports:
+          - "1280:1280"
+        command: /var/openziti/scripts/run-controller.sh
