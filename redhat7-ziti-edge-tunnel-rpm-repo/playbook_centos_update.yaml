@@ -1,0 +1,19 @@
+---
+- name: Upgrade OS and Install Boilerplate Packages
+  gather_facts: false
+  hosts: default
+  become: true
+
+  tasks:
+    - name: Upgrade Installed Packages
+      ansible.builtin.yum:
+        name: '*'
+        state: latest
+
+    - name: Install Utils
+      ansible.builtin.yum:
+        name: "{{ item }}"
+      loop:
+        - epel-release
+        - python3-pip
+        - yum-utils

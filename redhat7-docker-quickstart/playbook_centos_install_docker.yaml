@@ -1,65 +1,60 @@
 ---
 - name: Install docker
-  gather_facts: No
+  gather_facts: false
   hosts: default
-  become: yes
+  become: true
 
   tasks:
     - name: Install yum utils
-      yum:
+      ansible.builtin.yum:
         name: yum-utils
-        state: latest
 
     - name: Install device-mapper-persistent-data
-      yum:
+      ansible.builtin.yum:
         name: device-mapper-persistent-data
-        state: latest
 
     - name: Install lvm2
-      yum:
+      ansible.builtin.yum:
         name: lvm2
-        state: latest
 
     - name: Add Docker repo
-      get_url:
+      ansible.builtin.get_url:
         url: https://download.docker.com/linux/centos/docker-ce.repo
         dest: /etc/yum.repos.d/docer-ce.repo
 
     - name: Enable Docker Edge repo
-      ini_file:
+      community.general.ini_file:
         dest: /etc/yum.repos.d/docer-ce.repo
         section: 'docker-ce-edge'
         option: enabled
         value: 0
 
     - name: Enable Docker Test repo
-      ini_file:
+      community.general.ini_file:
         dest: /etc/yum.repos.d/docer-ce.repo
         section: 'docker-ce-test'
         option: enabled
         value: 0
 
     - name: Install Docker
-      package:
+      ansible.builtin.package:
         name: docker-ce
-        state: latest
 
     - name: Start Docker service
-      service:
+      ansible.builtin.service:
         name: docker
         state: started
-        enabled: yes
+        enabled: true
 
     - name: Add user vagrant to docker group
-      user:
+      ansible.builtin.user:
         name: vagrant
         groups: docker
-        append: yes
+        append: true
 
-    - ansible.builtin.yum:
+    - name: Install Python3
+      ansible.builtin.yum:
         name: "{{ item }}"
-        state: latest
       loop:
         - epel-release
         - python3-pip
-

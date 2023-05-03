@@ -1,0 +1,67 @@
+- name: Install Ziti Edge Tunnel
+  gather_facts: false
+  hosts: default
+  become: true
+
+  tasks:
+    - name: Configure RPM Repository
+      ansible.builtin.copy:
+        dest: /etc/yum.repos.d/openziti.repo
+        mode: '0644'
+        owner: root
+        group: root
+        content: |
+          [OpenZiti]
+          name=OpenZiti
+          baseurl=https://packages.openziti.org/zitipax-openziti-rpm-stable/redhat$releasever/$basearch
+          enabled=1
+          gpgcheck=0
+          gpgkey=https://packages.openziti.org/zitipax-openziti-rpm-stable/redhat$releasever/$basearch/repodata/repomd.xml.key
+          repo_gpgcheck=1
+    - name: Install Ziti Edge Tunnel
+      ansible.builtin.yum:
+        name: ziti-edge-tunnel
+        update_cache: yes
+        disable_gpg_check: no
+        state: present
+        # enablerepo: OpenZiti
+        # skip_broken: yes
+        # allow_downgrade: yes
+        # install_weak_deps: no
+    - name: Install Ziti Identity Enrollment Token
+      ansible.builtin.copy:
+        src: ./ziti-id.jwt  # relative to playbook on Vagrant host/Ansible Controller
+        dest: /opt/openziti/etc/identities/ziti-id.jwt
+        owner: root
+        group: ziti
+        mode: '0664'
+    - name: Add two IPv4 DNS server addresses
+      community.general.nmcli:
+        conn_name: System eth0
+        type: ethernet
+        dns4_ignore_auto: true
+        dns4:
+          - 100.64.0.2
+          - 1.1.1.1
+        state: present
+    - name: raise the network manager connection
+      command: nmcli connection up "System eth0"
+    - name: Start Ziti Edge Tunnel
+      ansible.builtin.service:
+        name: ziti-edge-tunnel
+        state: started
+        enabled: yes
+    - name: Ensure Ziti Edge Tunnel is running
+      ansible.builtin.pause:
+        seconds: 10
+    - name: Send an HTTP Request to Test Ziti
+      ansible.builtin.uri:
+        url: http://httpbin.ziti/post
+        method: POST
+        body_format: json
+        body:
+          hello: ziggy
+      register: httpbin
+      failed_when:
+        - httpbin.status != 200
+        - httpbin.json.hello != "ziggy"
