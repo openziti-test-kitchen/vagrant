@@ -1,3 +1,4 @@
 .vagrant/
 *.jwt
 *.rpm
+*.deb
