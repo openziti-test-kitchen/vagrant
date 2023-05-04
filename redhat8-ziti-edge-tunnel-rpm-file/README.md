@@ -1,5 +1,5 @@
 
-# Install Ziti Edge Tunnel from the RPM Repository as a Systemd Service on RedHat 7 with Vagrant
+# Install Ziti Edge Tunnel from an RPM File as a Systemd Service on RedHat 8 with Vagrant
 
 ## Prerequisites
 
