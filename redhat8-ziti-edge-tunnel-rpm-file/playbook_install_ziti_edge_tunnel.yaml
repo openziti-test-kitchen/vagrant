@@ -44,6 +44,7 @@
         seconds: 10
     - name: Send an HTTP Request to Test Ziti
       ansible.builtin.uri:
+        # url: http://testapi.ziti/post
         url: http://httpbin.ziti/post
         method: POST
         body_format: json
