@@ -26,17 +26,6 @@
         group: ziti
         mode: '0664'
       when: ziti_id.stat.exists == false
-    # - name: Add two IPv4 DNS server addresses
-    #   community.general.nmcli:
-    #     conn_name: System eth0
-    #     type: ethernet
-    #     dns4_ignore_auto: true
-    #     dns4:
-    #       - 100.64.0.2
-    #       - 1.1.1.1
-    #     state: present
-    # - name: raise the network manager connection
-    #   command: nmcli connection up "System eth0"
     - name: Start Ziti Edge Tunnel
       ansible.builtin.service:
         name: ziti-edge-tunnel

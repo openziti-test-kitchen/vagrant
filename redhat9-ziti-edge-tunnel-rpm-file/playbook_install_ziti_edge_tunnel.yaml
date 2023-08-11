@@ -4,21 +4,18 @@
   become: true
 
   tasks:
-    - name: Copy DEB File
+    - name: Copy RPM File
       ansible.builtin.copy:
-        src: ./ziti-edge-tunnel.deb  # relative to playbook on Vagrant host/Ansible Controller
-        dest: /tmp/ziti-edge-tunnel.deb
+        src: ./ziti-edge-tunnel.rpm  # relative to playbook on Vagrant host/Ansible Controller
+        dest: /tmp/ziti-edge-tunnel.rpm
         owner: root
         group: root
         mode: '0644'
-    - name: Install Ziti Edge Tunnel from DEB File
-      ansible.builtin.apt:
-        deb: /tmp/ziti-edge-tunnel.deb
-        update_cache: yes
-    - name: Detect existing Ziti Identity
-      ansible.builtin.stat:
-        path: /opt/openziti/etc/identities/ziti-id.json
-      register: ziti_id
+    - name: Install Ziti Edge Tunnel from RPM File
+      ansible.builtin.yum:
+        name: /tmp/ziti-edge-tunnel.rpm
+        disable_gpg_check: true
+        state: present
     - name: Install Ziti Identity Enrollment Token
       ansible.builtin.copy:
         src: ./ziti-id.jwt  # relative to playbook on Vagrant host/Ansible Controller
@@ -26,18 +23,29 @@
         owner: root
         group: ziti
         mode: '0664'
-      when: ziti_id.stat.exists == false
     - name: Start Ziti Edge Tunnel
       ansible.builtin.service:
         name: ziti-edge-tunnel
         state: started
         enabled: true
+    - name: Add two IPv4 DNS server addresses
+      community.general.nmcli:
+        conn_name: eth0
+        type: ethernet
+        dns4_ignore_auto: true
+        dns4:
+          - 100.64.0.2
+          - 1.1.1.1
+        state: present
+    - name: raise the network manager connection
+      command: nmcli connection up "eth0"
     - name: Ensure Ziti Edge Tunnel is running
       ansible.builtin.pause:
         seconds: 10
     - name: Send an HTTP Request to Test Ziti
       ansible.builtin.uri:
-        url: http://httpbin.miniziti/post
+        # url: http://testapi.ziti/post
+        url: http://httpbin.ziti/post
         method: POST
         body_format: json
         body:
