@@ -5,10 +5,10 @@
   become: true
 
   tasks:
-    - name: Upgrade Installed Packages
-      ansible.builtin.yum:
-        name: '*'
-        state: latest
+    # - name: Upgrade Installed Packages
+    #   ansible.builtin.yum:
+    #     name: '*'
+    #     state: latest
 
     - name: Install Utils
       ansible.builtin.yum:

@@ -4,16 +4,18 @@
   become: true
 
   tasks:
-    - name: Copy DEB File
-      ansible.builtin.copy:
-        src: ./ziti-edge-tunnel.deb  # relative to playbook on Vagrant host/Ansible Controller
-        dest: /tmp/ziti-edge-tunnel.deb
-        owner: root
-        group: root
-        mode: '0644'
-    - name: Install Ziti Edge Tunnel from DEB File
+    - name: Add Apt signing key
+      ansible.builtin.apt_key:
+        url: https://get.openziti.io/tun/package-repos.gpg
+        state: present
+    - name: Add specified repository into sources list
+      ansible.builtin.apt_repository:
+        repo: deb https://packages.openziti.org/zitipax-openziti-deb-stable focal main
+        state: present
+    - name: Install Ziti Edge Tunnel from DEB repo
       ansible.builtin.apt:
-        deb: /tmp/ziti-edge-tunnel.deb
+        name: ziti-edge-tunnel
+        update_cache: true
     - name: Detect existing Ziti Identity
       ansible.builtin.stat:
         path: /opt/openziti/etc/identities/ziti-id.json
@@ -26,17 +28,6 @@
         group: ziti
         mode: '0664'
       when: ziti_id.stat.exists == false
-    # - name: Add two IPv4 DNS server addresses
-    #   community.general.nmcli:
-    #     conn_name: System eth0
-    #     type: ethernet
-    #     dns4_ignore_auto: true
-    #     dns4:
-    #       - 100.64.0.2
-    #       - 1.1.1.1
-    #     state: present
-    # - name: raise the network manager connection
-    #   command: nmcli connection up "System eth0"
     - name: Start Ziti Edge Tunnel
       ansible.builtin.service:
         name: ziti-edge-tunnel
@@ -47,7 +38,7 @@
         seconds: 10
     - name: Send an HTTP Request to Test Ziti
       ansible.builtin.uri:
-        url: http://httpbin.ziti/post
+        url: http://httpbin.miniziti/post
         method: POST
         body_format: json
         body:

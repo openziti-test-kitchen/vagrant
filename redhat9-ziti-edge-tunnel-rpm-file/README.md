@@ -1,5 +1,5 @@
 
-# Install Ziti Edge Tunnel from an DEB File as a Systemd Service on Ubuntu Trusty 14.04 with Vagrant
+# Install Ziti Edge Tunnel from an RPM File as a Systemd Service on RedHat 9 with Vagrant
 
 ## Prerequisites
 
