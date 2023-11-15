@@ -1,0 +1,40 @@
+- name: zrok-share
+  gather_facts: false
+  hosts: default
+  become: true
+
+  tasks:
+  # - name: install.bash
+  #   copy:
+  #     src: install.bash
+  #     dest: /tmp/install.bash
+      # bash /tmp/install.bash zrok-share
+
+  - name: Install zrok-share package
+    shell: >
+      curl https://raw.githubusercontent.com/openziti/ziti/release-next/dist/dist-packages/linux/install.bash
+      | bash -xs zrok-share
+    environment:
+      ZITIPAX_DEB: zitipax-fork-deb-stable
+      ZITIPAX_RPM: zitipax-fork-rpm-stable
+
+  - name: Place env YAML
+    copy:
+      dest: /opt/openziti/etc/zrok/zrok-share.env
+      src: /opt/openziti/etc/zrok/zrok-share.env
+
+  - name: Enable and start service
+    systemd:
+      name: zrok-share
+      enabled: yes
+      state: started
+      daemon_reload: yes
+
+  - name: Wait for service
+    systemd:
+      name: zrok-share
+      state: started
+    register: service_status
+    until: service_status.status.ActiveState == 'active'
+    retries: 30
+    delay: 1
