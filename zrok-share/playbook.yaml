@@ -4,13 +4,8 @@
   become: true
 
   tasks:
-  # - name: install.bash
-  #   copy:
-  #     src: install.bash
-  #     dest: /tmp/install.bash
-      # bash /tmp/install.bash zrok-share
 
-  - name: Install zrok-share package
+  - name: Install zrok-share package from repo
     shell: >
       curl https://raw.githubusercontent.com/openziti/ziti/release-next/dist/dist-packages/linux/install.bash
       | bash -xs zrok-share
@@ -23,11 +18,11 @@
       dest: /opt/openziti/etc/zrok/zrok-share.env
       src: /opt/openziti/etc/zrok/zrok-share.env
 
-  - name: Enable and start service
+  - name: Enable and restart service
     systemd:
       name: zrok-share
       enabled: yes
-      state: started
+      state: restarted
       daemon_reload: yes
 
   - name: Wait for service
