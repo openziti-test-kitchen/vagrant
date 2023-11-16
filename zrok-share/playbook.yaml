@@ -5,6 +5,11 @@
 
   tasks:
 
+  - name: Install dependencies
+    package:
+      name: [curl, gnupg]
+      state: present
+
   - name: Install zrok-share package from repo
     shell: >
       curl https://raw.githubusercontent.com/openziti/ziti/release-next/dist/dist-packages/linux/install.bash
