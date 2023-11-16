@@ -13,7 +13,7 @@
       ZITIPAX_DEB: zitipax-fork-deb-stable
       ZITIPAX_RPM: zitipax-fork-rpm-stable
 
-  - name: Place env YAML
+  - name: Place env config
     copy:
       dest: /opt/openziti/etc/zrok/zrok-share.env
       src: /opt/openziti/etc/zrok/zrok-share.env
