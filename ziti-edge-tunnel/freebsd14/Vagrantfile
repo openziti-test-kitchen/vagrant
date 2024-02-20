@@ -1,6 +1,6 @@
 Vagrant.configure("2") do |config|
     config.vm.provider :libvirt do |libvirt|
-        libvirt.memory = 8092 # Amount of memory in MB
+        libvirt.memory = 8192 # Amount of memory in MB
         libvirt.cpus = 8 # Number of CPUs
     end
     config.vm.box = "generic/freebsd14"

@@ -53,13 +53,14 @@
         chdir: /home/vagrant/vcpkg
         creates: /home/vagrant/vcpkg/vcpkg
 
-    - name: clone ziti-sdk-c
-      ansible.builtin.git:
-        repo: https://github.com/openziti/ziti-sdk-c.git
-        version: 0.36.5
-        single_branch: yes
-        dest: /home/vagrant/ziti-sdk-c
-      when: clone_ziti_sdk_c == "true"
+    # decided to use `vagrant rsync` to keep the checkout in sync with the vagrant box
+    # - name: clone ziti-sdk-c
+    #   ansible.builtin.git:
+    #     repo: https://github.com/openziti/ziti-sdk-c.git
+    #     version: 0.36.5
+    #     single_branch: yes
+    #     dest: /home/vagrant/ziti-sdk-c
+    #   when: clone_ziti_sdk_c == "true"
 
     - name: build ziti-sdk-c
       ansible.builtin.shell: |
