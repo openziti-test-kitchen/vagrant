@@ -12,4 +12,5 @@ Vagrant.configure("2") do |config|
         }
     end
     config.vm.synced_folder "/home/kbingham/Sites/netfoundry/github/ziti-sdk-c", "/home/vagrant/ziti-sdk-c"
+    config.vm.synced_folder "/home/kbingham/Sites/netfoundry/github/tlsuv", "/home/vagrant/tlsuv"
 end

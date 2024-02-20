@@ -67,7 +67,7 @@
         set -euxo pipefail
         mkdir build
         cd build
-        cmake --preset ci-freebsd-x64 ..
+        cmake --preset ci-freebsd-x64 -Dtlsuv_DIR=${HOME}/tlsuv ..
         cmake --build .
       environment:
         VCPKG_ROOT: /home/vagrant/vcpkg
