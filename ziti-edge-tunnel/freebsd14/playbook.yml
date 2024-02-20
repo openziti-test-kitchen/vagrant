@@ -1,0 +1,75 @@
+---
+- name: Bootstrap Development Environment
+  gather_facts: false
+  hosts: all
+  become: no
+
+  tasks:
+    - name: install Python
+      become: yes
+      ansible.builtin.raw: |
+        pkg update
+        pkg upgrade -y
+        pkg install -y python
+
+    - name: install packages
+      become: yes
+      ansible.builtin.pkgng:
+        name:
+          - cmake
+          - expect
+          - gcc
+          - git
+          - go
+          - gmake
+          - ninja
+          - pkgconf
+          - portsnap
+          - rsync
+          - vim
+          - zip
+          - zlib-ng
+        state: present
+
+    - name: Install Ports
+      become: yes
+      ansible.builtin.shell: |
+        portsnap fetch
+        portsnap extract
+        portsnap update
+      args:
+        creates: /usr/ports
+
+    - name: clone vcpkg
+      ansible.builtin.git:
+        repo: https://github.com/microsoft/vcpkg.git
+        version: 2024.02.14
+        single_branch: yes
+        dest: /home/vagrant/vcpkg
+
+    - name: bootstrap vcpkg
+      ansible.builtin.shell: ./bootstrap-vcpkg.sh
+      args:
+        chdir: /home/vagrant/vcpkg
+        creates: /home/vagrant/vcpkg/vcpkg
+
+    - name: clone ziti-sdk-c
+      ansible.builtin.git:
+        repo: https://github.com/openziti/ziti-sdk-c.git
+        version: 0.36.5
+        single_branch: yes
+        dest: /home/vagrant/ziti-sdk-c
+      when: clone_ziti_sdk_c == "true"
+
+    - name: build ziti-sdk-c
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        mkdir build
+        cd build
+        cmake --preset ci-freebsd-x64 ..
+        cmake --build .
+      environment:
+        VCPKG_ROOT: /home/vagrant/vcpkg
+      args:
+        chdir: /home/vagrant/ziti-sdk-c
+        creates: /home/vagrant/ziti-sdk-c/build
