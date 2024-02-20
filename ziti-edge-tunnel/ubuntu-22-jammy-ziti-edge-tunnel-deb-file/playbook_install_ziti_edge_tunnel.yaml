@@ -14,6 +14,7 @@
     - name: Install Ziti Edge Tunnel from DEB File
       ansible.builtin.apt:
         deb: /tmp/ziti-edge-tunnel.deb
+        force: yes
     - name: Detect existing Ziti Identity
       ansible.builtin.stat:
         path: /opt/openziti/etc/identities/ziti-id.json
@@ -36,7 +37,7 @@
         seconds: 10
     - name: Send an HTTP Request to Test Ziti
       ansible.builtin.uri:
-        url: http://httpbin.ziti/post
+        url: http://httpbin.miniziti.private/post
         method: POST
         body_format: json
         body:

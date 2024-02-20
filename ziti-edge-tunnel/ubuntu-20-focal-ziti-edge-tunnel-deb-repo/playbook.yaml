@@ -1,6 +1,6 @@
 - name: Install Ziti Edge Tunnel
   gather_facts: false
-  hosts: default
+  hosts: tunneler
   become: true
 
   tasks:
