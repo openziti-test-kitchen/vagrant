@@ -1,8 +1,33 @@
 Vagrant.configure("2") do |config|
-    config.vm.box = "generic/ubuntu2004"
-    config.vm.provision "ansible", run: "once" do |ansible|
-        ansible.verbose = "v"
-        ansible.playbook = "playbook_install_ziti_edge_tunnel.yaml"
-        ansible.extra_vars = { ansible_python_interpreter: "/usr/bin/python3" }
+
+    config.dns.tld = "vagrant.internal"
+
+    # Define a Docker container
+    config.vm.define "quickstart" do |docker|
+        docker.vm.hostname = "quickstart"
+        docker.vm.provider "docker" do |d|
+            d.image = "docker.io/openziti/ziti-cli:0.31.2"
+            d.remains_running = true
+            d.has_ssh = false # Set to true if the container has SSH enabled
+            # d.ports = ["8080:80"] # Map port 80 in the container to 8080 on the host
+            # d.volumes = ["/host/path:/container/path"] # Mount a volume
+            d.env = {
+                "PFXLOG_NO_JSON" => "true",
+                "ZITI_CTRL_EDGE_ADVERTISED_ADDRESS" => "quickstart.vagrant.internal",
+                "ZITI_ROUTER_ADVERTISED_ADDRESS" => "quickstart.vagrant.internal",
+            }
+            d.cmd = ["edge", "quickstart"]
+            d.expose = [1280, 3022]
+        end
+    end
+
+    config.vm.define "tunneler", primary: true do |tunneler|
+        tunneler.vm.hostname = "tunneler"
+        tunneler.vm.box = "generic/ubuntu2004"
+        tunneler.vm.provision "ansible", run: "once" do |ansible|
+            ansible.verbose = "v"
+            ansible.playbook = "playbook.yaml"
+            # ansible.extra_vars = { ansible_python_interpreter: "/usr/bin/python3" }
+        end
     end
 end
