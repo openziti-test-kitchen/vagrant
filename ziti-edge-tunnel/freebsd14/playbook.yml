@@ -40,11 +40,24 @@
         creates: /usr/ports
 
     - name: Install Go 1.21
-      ansible.builtin.shell: make install clean
+      ansible.builtin.shell: |
+        make install clean
+        ln -sfvn /usr/local/go121/bin/go /usr/local/bin/go
       become: yes
       args:
         chdir: /usr/ports/lang/go121
-        creates: /usr/local/go/bin/go
+        creates: /usr/local/go121/bin/go
+
+    - name: Set Environment Variables
+      ansible.builtin.blockinfile:
+        # path: /etc/profile.d/go.sh
+        path: ~/.bashrc
+        create: yes
+        block: |
+          export GOROOT=/usr/local/go121
+          export GOPATH=$HOME/go
+          export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+      # become: yes
 
     - name: clone vcpkg
       ansible.builtin.git:
