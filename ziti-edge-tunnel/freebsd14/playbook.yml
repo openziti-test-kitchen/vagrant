@@ -20,7 +20,6 @@
           - expect
           - gcc
           - git
-          - go
           - gmake
           - ninja
           - pkgconf
@@ -39,6 +38,13 @@
         portsnap update
       args:
         creates: /usr/ports
+
+    - name: Install Go 1.21
+      ansible.builtin.shell: make install clean
+      become: yes
+      args:
+        chdir: /usr/ports/lang/go121
+        creates: /usr/local/go/bin/go
 
     - name: clone vcpkg
       ansible.builtin.git:
@@ -62,15 +68,15 @@
     #     dest: /home/vagrant/ziti-sdk-c
     #   when: clone_ziti_sdk_c == "true"
 
-    - name: build ziti-sdk-c
-      ansible.builtin.shell: |
-        set -euxo pipefail
-        mkdir build
-        cd build
-        cmake --preset ci-freebsd-x64 -Dtlsuv_DIR=${HOME}/tlsuv ..
-        cmake --build .
-      environment:
-        VCPKG_ROOT: /home/vagrant/vcpkg
-      args:
-        chdir: /home/vagrant/ziti-sdk-c
-        creates: /home/vagrant/ziti-sdk-c/build
+    # - name: build ziti-sdk-c
+    #   ansible.builtin.shell: |
+    #     set -euxo pipefail
+    #     mkdir build
+    #     cd build
+    #     cmake --preset ci-freebsd-x64 -Dtlsuv_DIR=${HOME}/tlsuv ..
+    #     cmake --build .
+    #   environment:
+    #     VCPKG_ROOT: /home/vagrant/vcpkg
+    #   args:
+    #     chdir: /home/vagrant/ziti-sdk-c
+    #     creates: /home/vagrant/ziti-sdk-c/build
