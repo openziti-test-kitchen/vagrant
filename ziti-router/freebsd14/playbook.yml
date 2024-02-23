@@ -1,0 +1,80 @@
+---
+- name: Bootstrap Development Environment
+  gather_facts: false
+  hosts: all
+  become: false
+
+  tasks:
+    - name: Install Python
+      become: true
+      ansible.builtin.raw: |
+        pkg update
+        pkg upgrade -y
+        pkg install -y python
+
+    - name: Install Distribution Packages
+      become: true
+      ansible.builtin.pkgng:
+        name:
+          # - cmake
+          # - expect
+          # - gcc
+          - git
+          # - gmake
+          # - ninja
+          # - pkgconf
+          - portsnap
+          - rsync
+          - vim
+          # - zip
+          # - zlib-ng
+        state: present
+
+    - name: Fetch the Ports Repository
+      become: true
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        portsnap fetch
+        portsnap extract
+        portsnap update
+      args:
+        creates: /usr/ports
+
+    - name: Install Go 1.21 from Ports
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        make install clean
+        ln -sfvn /usr/local/go121/bin/go /usr/local/bin/go
+      become: true
+      args:
+        chdir: /usr/ports/lang/go121
+        creates: /usr/local/go121/bin/go
+
+    - name: Set Environment Variables
+      ansible.builtin.blockinfile:
+        path: ~/.bashrc
+        create: true
+        mode: '0600'
+        block: |
+          export GOROOT=/usr/local/go121
+          export GOPATH=$HOME/go
+          export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+
+    - name: Clone OpenZiti
+      ansible.builtin.git:
+        repo: https://github.com/openziti/ziti.git
+        version: freebsd
+        single_branch: true
+        dest: /home/vagrant/ziti
+      when: clone == "true"
+
+    - name: Build and Test OpenZiti with Go 1.21
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        mkdir build
+        go build -o build ./...
+        go test -v ./...
+      environment: {}
+      args:
+        chdir: /home/vagrant/ziti
+        # creates: /home/vagrant/ziti/build/ziti

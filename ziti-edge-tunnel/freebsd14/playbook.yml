@@ -5,14 +5,14 @@
   become: no
 
   tasks:
-    - name: install Python
+    - name: Install Python
       become: yes
       ansible.builtin.raw: |
         pkg update
         pkg upgrade -y
         pkg install -y python
 
-    - name: install packages
+    - name: Install packages
       become: yes
       ansible.builtin.pkgng:
         name:
@@ -33,14 +33,16 @@
     - name: Install Ports
       become: yes
       ansible.builtin.shell: |
+        set -euxo pipefail
         portsnap fetch
         portsnap extract
         portsnap update
       args:
         creates: /usr/ports
 
-    - name: Install Go 1.21
+    - name: Install Go 1.21 from Ports
       ansible.builtin.shell: |
+        set -euxo pipefail
         make install clean
         ln -sfvn /usr/local/go121/bin/go /usr/local/bin/go
       become: yes
@@ -67,7 +69,9 @@
         dest: /home/vagrant/vcpkg
 
     - name: bootstrap vcpkg
-      ansible.builtin.shell: ./bootstrap-vcpkg.sh
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        ./bootstrap-vcpkg.sh
       args:
         chdir: /home/vagrant/vcpkg
         creates: /home/vagrant/vcpkg/vcpkg
