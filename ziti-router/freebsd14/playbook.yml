@@ -29,18 +29,10 @@
       become: true
       community.general.pkgng:
         name:
-          # - cmake
-          # - expect
-          # - gcc
           - git
-          # - gmake
-          # - ninja
-          # - pkgconf
           - portsnap
           - rsync
           - vim
-          # - zip
-          # - zlib-ng
         state: present
 
     - name: Fetch the Ports Repository
@@ -81,12 +73,6 @@
         chdir: /home/vagrant/ziti
         creates: /home/vagrant/ziti/build/ziti
 
-    - name: Copy Router Enrollment Token
-      ansible.builtin.copy:
-        src: /tmp/{{ ziti_router_name }}.jwt
-        dest: /tmp/{{ ziti_router_name }}.jwt
-        mode: '0600'
-
     - name: Create a Ziti Router Config
       ansible.builtin.shell: |
         set -euxo pipefail
@@ -98,6 +84,12 @@
       environment:
         ZITI_CTRL_ADVERTISED_ADDRESS: miniziti-controller-ctrl.192.168.49.2.sslip.io
         ZITI_CTRL_ADVERTISED_PORT: 443
+
+    - name: Copy Router Enrollment Token
+      ansible.builtin.copy:
+        src: /tmp/{{ ziti_router_name }}.jwt
+        dest: /tmp/{{ ziti_router_name }}.jwt
+        mode: '0600'
 
     - name: Enroll the Ziti Router
       ansible.builtin.shell: |

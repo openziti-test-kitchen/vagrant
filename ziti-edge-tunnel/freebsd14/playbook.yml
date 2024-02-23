@@ -1,20 +1,43 @@
 ---
+
 - name: Bootstrap Development Environment
   gather_facts: false
   hosts: all
-  become: no
+  become: false
+
+  vars:
+    goroot: /usr/local/go121
+    gopath: /home/vagrant/go
+    clone_all: "false"
+    repos:
+      - name: ziti-sdk-c
+        version: freebsd
+        clone: "false"
+      - name: tlsuv
+        version: freebsd
+        clone: "false"
+      - name: ziti
+        version: freebsd
+        clone: "false"
+      - name: ziti-tunnel-sdk-c
+        version: freebsd
+        clone: "false"
+
+  environment:
+    GOROOT: "{{ goroot }}"
+    GOPATH: "{{ gopath }}"
 
   tasks:
     - name: Install Python
-      become: yes
+      become: true
       ansible.builtin.raw: |
         pkg update
         pkg upgrade -y
         pkg install -y python
 
     - name: Install packages
-      become: yes
-      ansible.builtin.pkgng:
+      become: true
+      community.general.pkgng:
         name:
           - cmake
           - expect
@@ -31,7 +54,7 @@
         state: present
 
     - name: Install Ports
-      become: yes
+      become: true
       ansible.builtin.shell: |
         set -euxo pipefail
         portsnap fetch
@@ -45,30 +68,19 @@
         set -euxo pipefail
         make install clean
         ln -sfvn /usr/local/go121/bin/go /usr/local/bin/go
-      become: yes
+      become: true
       args:
         chdir: /usr/ports/lang/go121
         creates: /usr/local/go121/bin/go
 
-    - name: Set Environment Variables
-      ansible.builtin.blockinfile:
-        # path: /etc/profile.d/go.sh
-        path: ~/.bashrc
-        create: yes
-        block: |
-          export GOROOT=/usr/local/go121
-          export GOPATH=$HOME/go
-          export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
-      # become: yes
-
-    - name: clone vcpkg
+    - name: Clone vcpkg
       ansible.builtin.git:
         repo: https://github.com/microsoft/vcpkg.git
         version: 2024.02.14
-        single_branch: yes
+        single_branch: true
         dest: /home/vagrant/vcpkg
 
-    - name: bootstrap vcpkg
+    - name: Bootstrap vcpkg
       ansible.builtin.shell: |
         set -euxo pipefail
         ./bootstrap-vcpkg.sh
@@ -76,24 +88,24 @@
         chdir: /home/vagrant/vcpkg
         creates: /home/vagrant/vcpkg/vcpkg
 
-    # decided to use `vagrant rsync` to keep the checkout in sync with the vagrant box
-    # - name: clone ziti-sdk-c
-    #   ansible.builtin.git:
-    #     repo: https://github.com/openziti/ziti-sdk-c.git
-    #     version: 0.36.5
-    #     single_branch: yes
-    #     dest: /home/vagrant/ziti-sdk-c
-    #   when: clone_ziti_sdk_c == "true"
+    - name: Clone Ziti Projects
+      ansible.builtin.git:
+        repo: https://github.com/openziti/{{ item.name }}.git
+        version: "{{ item.version }}"
+        single_branch: true
+        dest: /home/vagrant/{{ item.name }}/
+      when: clone_all == "true" or item.clone == "true"
+      loop: "{{ repos }}"
 
-    # - name: build ziti-sdk-c
-    #   ansible.builtin.shell: |
-    #     set -euxo pipefail
-    #     mkdir build
-    #     cd build
-    #     cmake --preset ci-freebsd-x64 -Dtlsuv_DIR=${HOME}/tlsuv ..
-    #     cmake --build .
-    #   environment:
-    #     VCPKG_ROOT: /home/vagrant/vcpkg
-    #   args:
-    #     chdir: /home/vagrant/ziti-sdk-c
-    #     creates: /home/vagrant/ziti-sdk-c/build
+    - name: Build ziti-sdk-c
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        mkdir build
+        cd build
+        cmake --preset ci-freebsd-x64 -DZITI_CLI_VER=freebsd -Dtlsuv_DIR=${HOME}/tlsuv ..
+        cmake --build .
+      environment:
+        VCPKG_ROOT: /home/vagrant/vcpkg
+      args:
+        chdir: /home/vagrant/ziti-sdk-c
+        creates: /home/vagrant/ziti-sdk-c/build
