@@ -4,6 +4,9 @@
   hosts: all
   become: false
 
+  vars:
+    clone: "false"
+
   tasks:
     - name: Install Python
       become: true
@@ -14,7 +17,7 @@
 
     - name: Install Distribution Packages
       become: true
-      ansible.builtin.pkgng:
+      community.general.pkgng:
         name:
           # - cmake
           # - expect
@@ -72,9 +75,9 @@
       ansible.builtin.shell: |
         set -euxo pipefail
         mkdir build
-        go build -o build ./...
         go test -v ./...
+        go build -o build ./...
       environment: {}
       args:
         chdir: /home/vagrant/ziti
-        # creates: /home/vagrant/ziti/build/ziti
+        creates: /home/vagrant/ziti/build/ziti
