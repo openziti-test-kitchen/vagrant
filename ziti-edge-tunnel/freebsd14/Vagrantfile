@@ -11,6 +11,11 @@ Vagrant.configure("2") do |config|
             clone_ziti_sdk_c: "false"
         }
     end
-    config.vm.synced_folder "/home/kbingham/Sites/netfoundry/github/ziti-sdk-c", "/home/vagrant/ziti-sdk-c"
-    config.vm.synced_folder "/home/kbingham/Sites/netfoundry/github/tlsuv", "/home/vagrant/tlsuv"
+
+    ziti_source_path = ENV['ZITI_SOURCE'] || "/home/kbingham/Sites/netfoundry/github"
+    projects = ['ziti-sdk-c', 'tlsuv', 'ziti', 'ziti-tunnel-sdk-c']
+    projects.each do |project|
+        config.vm.synced_folder "#{ziti_source_path}/#{project}", "/home/vagrant/#{project}"
+    end
+
 end
