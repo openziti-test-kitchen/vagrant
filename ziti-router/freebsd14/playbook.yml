@@ -6,6 +6,8 @@
 
   vars:
     clone: "false"
+    router_enroll: "false"
+    router_run: "false"
     ziti_router_name: router1
     ziti_home: /tmp/ziti-router
     goroot: /usr/local/go121
@@ -85,20 +87,26 @@
         ZITI_CTRL_ADVERTISED_ADDRESS: miniziti-controller-ctrl.192.168.49.2.sslip.io
         ZITI_CTRL_ADVERTISED_PORT: 443
 
-    - name: Copy Router Enrollment Token
-      ansible.builtin.copy:
-        src: /tmp/{{ ziti_router_name }}.jwt
-        dest: /tmp/{{ ziti_router_name }}.jwt
-        mode: '0600'
+    - name: Enroll the router
+      when: router_enroll == "true"
+      block:
+        - name: Copy Router Enrollment Token
+          ansible.builtin.copy:
+            src: /tmp/{{ ziti_router_name }}.jwt
+            dest: /tmp/{{ ziti_router_name }}.jwt
+            mode: '0600'
 
-    - name: Enroll the Ziti Router
-      ansible.builtin.shell: |
-        set -euxo pipefail
-        ~/ziti/build/ziti router enroll "${ZITI_HOME}/config.yml" --jwt "/tmp/${ZITI_ROUTER_NAME}.jwt"
-      args:
-        creates: "{{ ziti_home }}/{{ ziti_router_name }}.cert"
+        - name: Enroll the Ziti Router
+          ansible.builtin.shell: |
+            set -euxo pipefail
+            ~/ziti/build/ziti router enroll "${ZITI_HOME}/config.yml" --jwt "/tmp/${ZITI_ROUTER_NAME}.jwt"
+          args:
+            creates: "{{ ziti_home }}/{{ ziti_router_name }}.cert"
 
-    # - name: Start the Ziti Router
-    #   ansible.builtin.shell: |
-    #     set -euxo pipefail
-    #     ~/ziti/build/ziti router run "${ZITI_HOME}/config.yml"
+    - name: Run the router
+      when: router_run == "true"
+      block:
+        - name: Start the Ziti Router
+          ansible.builtin.shell: |
+            set -euxo pipefail
+            ~/ziti/build/ziti router run "${ZITI_HOME}/config.yml"
