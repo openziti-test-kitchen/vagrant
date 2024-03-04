@@ -1,0 +1,112 @@
+---
+- name: Bootstrap Development Environment
+  gather_facts: false
+  hosts: all
+  become: false
+
+  vars:
+    clone: "false"
+    router_enroll: "false"
+    router_run: "false"
+    ziti_router_name: router1
+    ziti_home: /tmp/ziti-router
+    goroot: /usr/local/go121
+    gopath: /home/vagrant/go
+
+  environment:
+    ZITI_HOME: "{{ ziti_home }}"
+    ZITI_ROUTER_NAME: "{{ ziti_router_name }}"
+    GOROOT: "{{ goroot }}"
+    GOPATH: "{{ gopath }}"
+
+  tasks:
+    - name: Install Python
+      become: true
+      ansible.builtin.raw: |
+        pkg update
+        pkg upgrade -y
+        pkg install -y python
+
+    - name: Install Distribution Packages
+      become: true
+      community.general.pkgng:
+        name:
+          - git
+          - portsnap
+          - rsync
+          - vim
+        state: present
+
+    - name: Fetch the Ports Repository
+      become: true
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        portsnap fetch
+        portsnap extract
+        portsnap update
+      args:
+        creates: /usr/ports
+
+    - name: Install Go 1.21 from Ports
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        make install clean
+        ln -sfvn /usr/local/go121/bin/go /usr/local/bin/go
+      become: true
+      args:
+        chdir: /usr/ports/lang/go121
+        creates: /usr/local/go121/bin/go
+
+    - name: Clone OpenZiti
+      ansible.builtin.git:
+        repo: https://github.com/openziti/ziti.git
+        version: freebsd
+        single_branch: true
+        dest: /home/vagrant/ziti
+      when: clone == "true"
+
+    - name: Build and Test OpenZiti with Go 1.21
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        mkdir -p build
+        go test -v ./...
+        go build -o build ./...
+      args:
+        chdir: /home/vagrant/ziti
+        creates: /home/vagrant/ziti/build/ziti
+
+    - name: Create a Ziti Router Config
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        mkdir -p ${ZITI_HOME}
+        ~/ziti/build/ziti create config router edge --routerName "$ZITI_ROUTER_NAME" --tunnelerMode host \
+        | tee ${ZITI_HOME}/config.yml
+      args:
+        creates: "{{ ziti_home }}/config.yml"
+      environment:
+        ZITI_CTRL_ADVERTISED_ADDRESS: miniziti-controller-ctrl.192.168.49.2.sslip.io
+        ZITI_CTRL_ADVERTISED_PORT: 443
+
+    - name: Enroll the router
+      when: router_enroll == "true"
+      block:
+        - name: Copy Router Enrollment Token
+          ansible.builtin.copy:
+            src: /tmp/{{ ziti_router_name }}.jwt
+            dest: /tmp/{{ ziti_router_name }}.jwt
+            mode: '0600'
+
+        - name: Enroll the Ziti Router
+          ansible.builtin.shell: |
+            set -euxo pipefail
+            ~/ziti/build/ziti router enroll "${ZITI_HOME}/config.yml" --jwt "/tmp/${ZITI_ROUTER_NAME}.jwt"
+          args:
+            creates: "{{ ziti_home }}/{{ ziti_router_name }}.cert"
+
+    - name: Run the router
+      when: router_run == "true"
+      block:
+        - name: Start the Ziti Router
+          ansible.builtin.shell: |
+            set -euxo pipefail
+            ~/ziti/build/ziti router run "${ZITI_HOME}/config.yml"

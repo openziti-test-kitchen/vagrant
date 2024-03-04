@@ -1,0 +1,24 @@
+Vagrant.configure("2") do |config|
+    config.vm.define "freebsd-router" do |freebsd|
+        freebsd.vm.provider :libvirt do |libvirt|
+            libvirt.memory = 8192 # Amount of memory in MB
+            libvirt.cpus = 8 # Number of CPUs
+        end
+        freebsd.vm.box = "generic/freebsd14"
+        freebsd.vm.provision "ansible", run: "once" do |ansible|
+            ansible.verbose = "vvv"
+            ansible.playbook = "playbook.yml"
+            ansible.extra_vars = {
+                clone: ENV['ZITI_SOURCE'].nil? ? "true" : "false"
+            }
+        end
+
+        if !ENV['ZITI_SOURCE'].nil?
+            ziti_source_path = ENV['ZITI_SOURCE']
+            projects = ['ziti']
+            projects.each do |project|
+                freebsd.vm.synced_folder "#{ziti_source_path}/#{project}", "/home/vagrant/#{project}"
+            end
+        end
+    end
+end
