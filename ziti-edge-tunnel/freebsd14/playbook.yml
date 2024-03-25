@@ -14,14 +14,14 @@
         version: freebsd
         clone: "false"
       - name: tlsuv
-        version: freebsd
+        version: main
         clone: "false"
-      - name: ziti
-        version: freebsd
+      - name: ziti  # needed to run ziti-sdk-c tests
+        version: main
         clone: "false"
-      - name: ziti-tunnel-sdk-c
-        version: freebsd
-        clone: "false"
+      # - name: ziti-tunnel-sdk-c
+      #   version: freebsd
+      #   clone: "false"
 
   environment:
     GOROOT: "{{ goroot }}"
