@@ -10,7 +10,7 @@
     router_run: "false"
     ziti_router_name: router1
     ziti_home: /tmp/ziti-router
-    goroot: /usr/local/go121
+    goroot: /usr/local/go122
     gopath: /home/vagrant/go
 
   environment:
@@ -47,15 +47,15 @@
       args:
         creates: /usr/ports
 
-    - name: Install Go 1.21 from Ports
+    - name: Install Go 1.22 from Ports
       ansible.builtin.shell: |
         set -euxo pipefail
         make install clean
-        ln -sfvn /usr/local/go121/bin/go /usr/local/bin/go
+        ln -sfvn /usr/local/go122/bin/go /usr/local/bin/go
       become: true
       args:
-        chdir: /usr/ports/lang/go121
-        creates: /usr/local/go121/bin/go
+        chdir: /usr/ports/lang/go122
+        creates: /usr/local/go122/bin/go
 
     - name: Clone OpenZiti
       ansible.builtin.git:
@@ -65,7 +65,7 @@
         dest: /home/vagrant/ziti
       when: clone == "true"
 
-    - name: Build and Test OpenZiti with Go 1.21
+    - name: Build and Test OpenZiti with Go
       ansible.builtin.shell: |
         set -euxo pipefail
         mkdir -p build
