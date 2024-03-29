@@ -23,6 +23,9 @@ macOS or Windows users could use the Virtualbox provider with minor modification
     rm -rf $BUILD
     mkdir $BUILD
     cd $BUILD
+    # two temporary overrides pending acceptance of FreeBSD ports in trunk:
+    # - ZITI_CLI_VER: set GitHub ref to install for running tests
+    # - tlsuv_DIR: set local checkout dir to use instead of the pinned tlsuv version
     cmake --preset ci-freebsd-x64 -DZITI_CLI_VER=freebsd -Dtlsuv_DIR=${HOME}/tlsuv ..
     cmake --build .
     ```
