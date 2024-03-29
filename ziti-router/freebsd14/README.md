@@ -1,5 +1,5 @@
 
-Use this Vagrant box as-is with the `vagrant-libvirt` plugin on Linux to build and run a ziti router with Go 1.21 on FreeBSD 14.0.
+Use this Vagrant box as-is with the `vagrant-libvirt` plugin on Linux to build and run a ziti router with Go on FreeBSD 14.0.
 
 macOS or Windows users could use the Virtualbox provider with minor modifications to the Vagrantfile.
 
