@@ -1,0 +1,71 @@
+- name: Install Ziti Edge Tunnel
+  gather_facts: true
+  hosts: default
+  become: true
+
+  vars:
+    ziti_pwd: zitipw  # >= 5 characters
+    ziti_version: 0.34.0~8668960321
+  tasks:
+    - name: Configure RPM Repository
+      ansible.builtin.copy:
+        dest: /etc/yum.repos.d/openziti.repo
+        mode: '0644'
+        owner: root
+        group: root
+        content: |
+          [OpenZiti]
+          name=OpenZiti
+          baseurl=https://packages.openziti.org/zitipax-openziti-rpm-test/redhat/$basearch
+          enabled=1
+          gpgcheck=0
+          gpgkey=https://packages.openziti.org/zitipax-openziti-rpm-test/redhat/$basearch/repodata/repomd.xml.key
+          repo_gpgcheck=1
+
+    - name: Pin Ziti CLI version
+      ansible.builtin.yum:
+        name: openziti-{{ ziti_version }}
+        update_cache: true
+        disable_gpg_check: false
+        state: present
+
+    - name: Pin Ziti Controller version
+      ansible.builtin.yum:
+        name: openziti-controller-{{ ziti_version }}
+        disable_gpg_check: false
+        state: present
+        # enablerepo: OpenZiti
+        # skip_broken: yes
+        # allow_downgrade: yes
+        # install_weak_deps: no
+
+    - name: Enable Generating a Ziti Controller Configuration
+      ansible.builtin.lineinfile:
+        path: /opt/openziti/etc/controller/service.env
+        regexp: '^ZITI_BOOTSTRAP='
+        line: ZITI_BOOTSTRAP=true
+
+    - name: Set Controller Address
+      ansible.builtin.lineinfile:
+        path: /opt/openziti/etc/controller/bootstrap.env
+        regexp: '^ZITI_CTRL_ADVERTISED_ADDRESS='
+        line: ZITI_CTRL_ADVERTISED_ADDRESS=ctrl1.{{ ansible_default_ipv4.address }}.sslip.io
+
+    - name: Set Controller Password
+      ansible.builtin.copy:
+        dest: /opt/openziti/etc/controller/.pwd
+        content: "{{ ziti_pwd }}"
+        mode: '0600'
+
+    - name: Start Ziti Controller
+      ansible.builtin.systemd:
+        name: ziti-controller
+        state: started
+        enabled: true
+
+    - name: Allow Ziti Controller through the firewall
+      ansible.posix.firewalld:
+        port: 1280/tcp
+        permanent: true
+        state: enabled
+        immediate: true
