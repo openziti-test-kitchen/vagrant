@@ -1,0 +1,78 @@
+- name: Install Ziti Router
+  gather_facts: true
+  hosts: default
+  become: true
+
+  vars:
+    ctrl_address: ctrl1.192.168.121.20.sslip.io
+    ziti_token: eyJhbGciOiJSUzI1NiIsImtpZCI6Ijc5YWRhY2ExNzVjMWNkOWZlMDhhNjQ2MDI1MTYxZGM5ODI2YzJiNzQiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2N0cmwxLjE5Mi4xNjguMTIxLjIwLnNzbGlwLmlvOjEyODAiLCJzdWIiOiJVbTQzLmZSamVxIiwiYXVkIjpbIiJdLCJleHAiOjE3MTI5ODA3MzAsImp0aSI6ImFhNzdjOGI5LWU2OWMtNDg3ZC05NDIzLWI5ZjM5ODc2Mjk0NyIsImVtIjoiZXJvdHQiLCJjdHJscyI6bnVsbH0.nvrwJB8r2kPVPILXmyCAsbEvtVUA6vlIlf8D-QAFuoARy5THJ6jGGYOptUhTUQ03UGrC_phy48kYI1r7d9lvPGqNfps3o3dBCX616v0KOym2nbZVdwKHeMvYH7lcRfkBs3poxNtqtBLKe1JpTTieXfY2zzf7EL9RokZ7bOaUijxTjkICRKMNrej4-6jpDvph9Rwqd_GuYPZxgC_-O-89Nb_nCF6Jq6bAKUgkc-9QBl-QiNWOsu1bzpyjLSsPLp2pI3MnHe_WZ7G3e9pcGV9UZtpLJXoDDQhkFq_qtJ-nHdKtPx6u3c9rOT1-AmInh2Oq7smwc2cHRAFeyMmd7IyFyvWntdpOqHUkXyBDBKsFo66zCZvHcIUdk9sanXjLvItARqH-_LockuStrI5NMn-xZBQIxnF4FTUu1zXO-n4Id-BUbH7tZoYJ1o-PSI-BWkwWkiLk0JAfKd2LOPh0O1EN-WVc7RxlGIRo2mS4FhzOAsPRb1Rj0J5dLEsp4j-KsPGer4dYpklTaYHmAGjJ-QNTdftY6ewn_V7cCzf02Eetb60ikdfvVQCl4R7RPUnTw5WPqHLJMGdlYY-W57eEZW5pCElVGSUPOIaAPcSwx_N7_7QOx-ssYH5GL6JhUjtZ9W-dmpavVQaGVB29uuk8iMbFEmxB4j3zeGAuuvD_r4Uy6hk
+    ziti_version: 0.34.0~8668960321
+  tasks:
+    - name: Configure RPM Repository
+      ansible.builtin.copy:
+        dest: /etc/yum.repos.d/openziti.repo
+        mode: '0644'
+        owner: root
+        group: root
+        content: |
+          [OpenZiti]
+          name=OpenZiti
+          baseurl=https://packages.openziti.org/zitipax-openziti-rpm-test/redhat/$basearch
+          enabled=1
+          gpgcheck=0
+          gpgkey=https://packages.openziti.org/zitipax-openziti-rpm-test/redhat/$basearch/repodata/repomd.xml.key
+          repo_gpgcheck=1
+
+    - name: Pin Ziti CLI version
+      ansible.builtin.yum:
+        name: openziti-{{ ziti_version }}
+        update_cache: true
+        disable_gpg_check: false
+        state: present
+
+    - name: Pin Ziti Router version
+      ansible.builtin.yum:
+        name: openziti-router-{{ ziti_version }}
+        disable_gpg_check: false
+        state: present
+        # enablerepo: OpenZiti
+        # skip_broken: yes
+        # allow_downgrade: yes
+        # install_weak_deps: no
+
+    - name: Enable Generating a Ziti Router Configuration
+      ansible.builtin.lineinfile:
+        path: /opt/openziti/etc/router/service.env
+        regexp: '^ZITI_BOOTSTRAP='
+        line: ZITI_BOOTSTRAP=true
+
+    - name: Set Controller Address
+      ansible.builtin.lineinfile:
+        path: /opt/openziti/etc/router/bootstrap.env
+        regexp: '^ZITI_CTRL_ADVERTISED_ADDRESS='
+        line: ZITI_CTRL_ADVERTISED_ADDRESS={{ ctrl_address }}
+
+    - name: Set Router Address
+      ansible.builtin.lineinfile:
+        path: /opt/openziti/etc/router/bootstrap.env
+        regexp: '^ZITI_ROUTER_ADVERTISED_ADDRESS='
+        line: ZITI_ROUTER_ADVERTISED_ADDRESS=router1.{{ ansible_default_ipv4.address }}.sslip.io
+
+    - name: Set Enrollment Token
+      ansible.builtin.copy:
+        dest: /opt/openziti/etc/router/.token
+        content: "{{ ziti_token }}"
+        mode: '0600'
+
+    - name: Start Ziti Router
+      ansible.builtin.systemd:
+        name: ziti-router
+        state: started
+        enabled: true
+
+    - name: Allow Ziti Router through the firewall
+      ansible.posix.firewalld:
+        port: 3022/tcp
+        permanent: true
+        state: enabled
+        immediate: true
