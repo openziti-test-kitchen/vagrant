@@ -1,0 +1,55 @@
+- name: Install Ziti Controller
+  gather_facts: true
+  hosts: default
+  become: true
+
+  vars:
+    ziti_pwd: zitipw  # >= 5 characters
+    ziti_version: 0.34.0~8692548306
+  tasks:
+    - name: Add Apt signing key
+      ansible.builtin.apt_key:
+        url: https://get.openziti.io/tun/package-repos.gpg
+        state: present
+
+    - name: Add specified repository into sources list
+      ansible.builtin.apt_repository:
+        repo: deb https://packages.openziti.org/zitipax-openziti-deb-test debian main
+        state: present
+
+    - name: Install Ziti CLI and Controller from DEB repo
+      ansible.builtin.apt:
+        name:
+          - openziti={{ ziti_version }}
+          - openziti-controller={{ ziti_version }}
+        update_cache: true
+
+    - name: Enable Generating a Ziti Controller Configuration
+      ansible.builtin.lineinfile:
+        path: /opt/openziti/etc/controller/service.env
+        regexp: '^ZITI_BOOTSTRAP='
+        line: ZITI_BOOTSTRAP=true
+
+    - name: Set Controller Address
+      ansible.builtin.lineinfile:
+        path: /opt/openziti/etc/controller/bootstrap.env
+        regexp: '^ZITI_CTRL_ADVERTISED_ADDRESS='
+        line: ZITI_CTRL_ADVERTISED_ADDRESS=ctrl1.{{ ansible_default_ipv4.address }}.sslip.io
+
+    - name: Set Controller Password
+      ansible.builtin.copy:
+        dest: /opt/openziti/etc/controller/.pwd
+        content: "{{ ziti_pwd }}"
+        mode: '0600'
+
+    - name: Start Ziti Controller
+      ansible.builtin.systemd:
+        name: ziti-controller
+        state: started
+        enabled: true
+
+    - name: Allow Ziti Controller through the firewall
+      community.general.ufw:
+        rule: allow
+        port: 1280
+        proto: tcp
