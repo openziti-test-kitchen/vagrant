@@ -1,0 +1,62 @@
+- name: Install Ziti Edge Tunnel
+  gather_facts: true
+  hosts: default
+  become: true
+
+  vars:
+    ctrl_address: ctrl1.192.168.121.77.sslip.io
+    ziti_token: eyJhbGciOiJSUzI1NiIsImtpZCI6IjUxZmEzODM4YzJjYmZhN2RiZmRjNjc5ZDU4ZjRjNWQxODljOTk4NjAiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2N0cmwxLjE5Mi4xNjguMTIxLjc3LnNzbGlwLmlvOjEyODAiLCJzdWIiOiJURnV3aHBTeC4iLCJhdWQiOlsiIl0sImV4cCI6MTcxMzIyMDQ1OCwianRpIjoiNmFmOWNhY2YtYjI5NS00ZmIwLTk4NDctYWYyODA2ZmVjNWRhIiwiZW0iOiJlcm90dCIsImN0cmxzIjpudWxsfQ.v7Xo9mX63uW0WGsxWTXfXmyNtnOg2jP5Hiq_zprFMLdpEY1i69WWMs5JOXs64p1CM-BRcVK3CWoIB0gBAtm1jXcr0aWCRBAkdfLgeRFQgfb-PSZEz8AvQyvVrgdP_kJXaBrmuwhwYa3Fc2zq_r8tIKwoCcP7c-BL3MZD-WWyiOgWQxbu1gJolWaQCcPI66aYtCOdKnPxcTCS8q_pCdyYsgurxJ5wljVA0or7_VSWvT6ZSzFbiAejHwIFppiyA2Zd14McvA4ZkoCP9nSjF7O8fr9oGz3agfwTk14uPAKWpxuI5STcsTDK8hJil7uGUQ-MMjzGvs31AcY-X3pIq5ftl5R7DpcfzdIB0zEAcI9PVPr-3nEVXrqL0Vx5TaiKssJ2AOYs0bfCMQtq4GRyFOXfbb9h6nvm_zJCv3gkpoDpGVcEg-bv7vOlZHPA2xUaKkMeIbiZroCnbd1hvaebh8pZBF5G1ctKxXQBSv9wdG2JKW1RumgU4vkYBTs3rObTJXPyE6V1eooCSRo4uIiz4knYmcx7SrAQZYCd1zVcX7u2yr2tGctsioV4jwghr0wiXzqm81VF-sXt3K6ua4lS1hBDyzaPRStMAO8K07sEexCERVZaE65oD9Y5DlCGug0REPHAVcwW6Dr2gJnRq0p9iTf8UKMPHEzhBLpuDfungOBSvzo
+    ziti_version: 0.34.0~8692548306
+  tasks:
+    - name: Add Apt signing key
+      ansible.builtin.apt_key:
+        url: https://get.openziti.io/tun/package-repos.gpg
+        state: present
+
+    - name: Add specified repository into sources list
+      ansible.builtin.apt_repository:
+        repo: deb https://packages.openziti.org/zitipax-openziti-deb-test debian main
+        state: present
+
+    - name: Install Ziti CLI and Router from DEB repo
+      ansible.builtin.apt:
+        name:
+          - openziti={{ ziti_version }}
+          - openziti-router={{ ziti_version }}
+        update_cache: true
+
+    - name: Enable Generating a Ziti Router Configuration
+      ansible.builtin.lineinfile:
+        path: /opt/openziti/etc/router/service.env
+        regexp: '^ZITI_BOOTSTRAP='
+        line: ZITI_BOOTSTRAP=true
+
+    - name: Set Controller Address
+      ansible.builtin.lineinfile:
+        path: /opt/openziti/etc/router/bootstrap.env
+        regexp: '^ZITI_CTRL_ADVERTISED_ADDRESS='
+        line: ZITI_CTRL_ADVERTISED_ADDRESS={{ ctrl_address }}
+
+    - name: Set Router Address
+      ansible.builtin.lineinfile:
+        path: /opt/openziti/etc/router/bootstrap.env
+        regexp: '^ZITI_ROUTER_ADVERTISED_ADDRESS='
+        line: ZITI_ROUTER_ADVERTISED_ADDRESS=router1.{{ ansible_default_ipv4.address }}.sslip.io
+
+    - name: Set Enrollment Token
+      ansible.builtin.copy:
+        dest: /opt/openziti/etc/router/.token
+        content: "{{ ziti_token }}"
+        mode: '0600'
+
+    - name: Start Ziti Router
+      ansible.builtin.systemd:
+        name: ziti-router
+        state: started
+        enabled: true
+
+    - name: Allow Ziti Router through the firewall
+      community.general.ufw:
+        rule: allow
+        port: 3022
+        proto: tcp
