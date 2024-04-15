@@ -1,4 +1,4 @@
-- name: Install Ziti Edge Tunnel
+- name: Install Ziti Router
   gather_facts: true
   hosts: default
   become: true
