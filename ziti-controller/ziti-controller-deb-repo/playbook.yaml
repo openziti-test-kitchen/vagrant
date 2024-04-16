@@ -5,7 +5,7 @@
 
   vars:
     ziti_pwd: zitipw  # >= 5 characters
-    ziti_version: 0.34.0~8692548306
+    ziti_version: 0.34.0~8696390463
   tasks:
     - name: Add Apt signing key
       ansible.builtin.apt_key:

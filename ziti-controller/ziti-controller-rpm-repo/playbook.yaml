@@ -5,7 +5,7 @@
 
   vars:
     ziti_pwd: zitipw  # >= 5 characters
-    ziti_version: 0.34.0~8668960321
+    ziti_version: 0.34.0~8696390463
   tasks:
     - name: Configure RPM Repository
       ansible.builtin.copy:
