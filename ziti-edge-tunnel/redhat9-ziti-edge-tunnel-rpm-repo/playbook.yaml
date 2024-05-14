@@ -2,20 +2,32 @@
   gather_facts: false
   hosts: default
   become: true
+  vars:
+    zet_version: 0.22.29
 
   tasks:
-    - name: Copy RPM File
+    - name: Configure RPM Repository
       ansible.builtin.copy:
-        src: ./ziti-edge-tunnel.rpm  # relative to playbook on Vagrant host/Ansible Controller
-        dest: /tmp/ziti-edge-tunnel.rpm
+        dest: /etc/yum.repos.d/ziti-edge-tunnel.repo
+        mode: '0644'
         owner: root
         group: root
-        mode: '0644'
-    - name: Install Ziti Edge Tunnel from RPM File
+        content: |
+          [OpenZitiTunneler]
+          name=OpenZitiTunneler
+          baseurl=https://packages.openziti.org/zitipax-openziti-rpm-stable/redhat9/$basearch
+          enabled=1
+          gpgcheck=0
+          gpgkey=https://packages.openziti.org/zitipax-openziti-rpm-stable/redhat9/$basearch/repodata/repomd.xml.key
+          repo_gpgcheck=1
+
+    - name: Pin ZET version
       ansible.builtin.yum:
-        name: /tmp/ziti-edge-tunnel.rpm
-        disable_gpg_check: true
+        name: ziti-edge-tunnel-{{ zet_version }}
+        update_cache: true
+        disable_gpg_check: false
         state: present
+
     - name: Install Ziti Identity Enrollment Token
       ansible.builtin.copy:
         src: ./ziti-id.jwt  # relative to playbook on Vagrant host/Ansible Controller
@@ -23,11 +35,13 @@
         owner: root
         group: ziti
         mode: '0664'
+
     - name: Start Ziti Edge Tunnel
       ansible.builtin.service:
         name: ziti-edge-tunnel
         state: started
         enabled: true
+
     - name: Add two IPv4 DNS server addresses
       community.general.nmcli:
         conn_name: eth0
@@ -37,11 +51,14 @@
           - 100.64.0.2
           - 1.1.1.1
         state: present
+
     - name: raise the network manager connection
       command: nmcli connection up "eth0"
+
     - name: Ensure Ziti Edge Tunnel is running
       ansible.builtin.pause:
         seconds: 10
+
     - name: Send an HTTP Request to Test Ziti
       ansible.builtin.uri:
         # url: http://testapi.ziti/post
