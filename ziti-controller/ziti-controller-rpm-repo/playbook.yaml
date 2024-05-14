@@ -6,7 +6,7 @@
   vars:
     ziti_pwd: zitipw  # >= 5 characters
     # ziti_version: 1.1.1~8896393413  # from test repo
-    ziti_version: 1.1.1  # from stable repo
+    ziti_version: 1.1.2  # from stable repo
   tasks:
     - name: Configure RPM Repository
       ansible.builtin.copy:
