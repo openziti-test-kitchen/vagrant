@@ -42,15 +42,15 @@
         state: started
         enabled: true
 
-    - name: Add two IPv4 DNS server addresses
-      community.general.nmcli:
-        conn_name: eth0
-        type: ethernet
-        dns4_ignore_auto: true
-        dns4:
-          - 100.64.0.2
-          - 1.1.1.1
-        state: present
+    # - name: Add two IPv4 DNS server addresses
+    #   community.general.nmcli:
+    #     conn_name: eth0
+    #     type: ethernet
+    #     dns4_ignore_auto: true
+    #     dns4:
+    #       - 100.64.0.2
+    #       - 1.1.1.1
+    #     state: present
 
     - name: raise the network manager connection
       command: nmcli connection up "eth0"
