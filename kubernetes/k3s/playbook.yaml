@@ -60,11 +60,6 @@
       args:
         kubeconfig_local: "{{ kubeconfig_b64.content | b64decode | from_yaml }}"
 
-    # - name: Transform the server value for the default cluster
-    #   ansible.builtin.set_fact:
-    #   args:
-    #     kubeconfig: "{{ kubeconfig_local | combine({'clusters': kubeconfig_local.clusters | map('combine', {'cluster': {'server': 'https://' + ansible_default_ipv4.address + ':6443'}}) | list}) }}"
-
     - name: Define the remote kube api server address
       ansible.builtin.set_fact:
         kubeconfig_remote:
@@ -145,6 +140,11 @@
             service:
               enabled: true
               type: ClusterIP
+            altIngress:
+              advertisedHost: "{{ release_name }}-alt.{{ ansible_default_ipv4.address }}.sslip.io"
+              enabled: true
+              ingressClassName: traefik
+              annotations: {}
           webBindingPki:
             altServerCerts:
               - mode: certManager
@@ -156,15 +156,6 @@
                   kind: Issuer
                   name: "{{ release_name }}-controller-web-intermediate-issuer"
                 mountPath: /etc/ziti/alt-server-cert
-              # -- use an alternative certificate and key from a tls secret declared in additionalVolumes
-              # - mode: secret
-              #   secretName: kentest-alt-server-cert
-
-          # additionalVolumes:
-          #   - name: kentest-alt-server-cert
-          #     volumeType: secret
-          #     mountPath: /etc/ziti/kentest-alt-server-cert
-          #     secretName: kentest-alt-server-cert
           image:
             additionalArgs:
               - --verbose
@@ -186,8 +177,15 @@
     - name: Deploy IngressRouteTCP Resources
       kubernetes.core.k8s:
       loop:
-        - client
-        - mgmt
+        - name: client
+          host: "{{ release_name }}-client.{{ ansible_default_ipv4.address }}.sslip.io"
+          service: "{{ release_name }}-controller-client"
+        - name: alt
+          host: "{{ release_name }}-alt.{{ ansible_default_ipv4.address }}.sslip.io"
+          service: "{{ release_name }}-controller-client"
+        - name: mgmt
+          host: "{{ release_name }}-mgmt.{{ ansible_default_ipv4.address }}.sslip.io"
+          service: "{{ release_name }}-controller-mgmt"
       args:
         state: present
         kubeconfig: "{{ kubeconfig }}"
@@ -195,35 +193,15 @@
           apiVersion: traefik.containo.us/v1alpha1
           kind: IngressRouteTCP
           metadata:
-            name: "{{ release_name }}-{{ item }}-ingress"
+            name: "{{ release_name }}-{{ item.name }}-ingress"
             namespace: "{{ release_namespace }}"
           spec:
-            entryPoints:                    # [1]
+            entryPoints:
               - websecure
-            routes:                         # [2]
-              - match: HostSNI(`{{ release_name }}-{{ item }}.{{ ansible_default_ipv4.address }}.sslip.io`)           # [3]
-                # priority: 10                  # [4]
-                # middlewares: {}
-                # - name: middleware1           # [5]
-                #  namespace: default          # [6]
-                services:                     # [7]
-                  - name: "{{ release_name }}-controller-{{ item }}"
-                    port: 443                   # [9]
-                    # weight: 10                  # [10]
-                    # proxyProtocol:              # [11]
-                    #   version: 1                # [12]
-                    # serversTransport: transport # [13]
-                    # nativeLB: true              # [14]
-                    # nodePortLB: true            # [15]
-            tls:                            # [16]
-              # secretName: supersecret       # [17]
-              # options:                      # [18]
-              #   name: opt                   # [19]
-              #   namespace: default          # [20]
-              # certResolver: foo             # [21]
-              # domains:                      # [22]
-              # - main: example.net           # [23]
-              #   sans:                       # [24]
-              #   - a.example.net
-              #   - b.example.net
-              passthrough: true             # [25]
+            routes:
+              - match: HostSNI(`{{ item.host }}`)
+                services:
+                  - name: "{{ item.service }}"
+                    port: 443
+            tls:
+              passthrough: true
