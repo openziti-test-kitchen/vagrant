@@ -4,9 +4,13 @@ Vagrant.configure("2") do |config|
         libvirt.machine_virtual_size = 128
     end
 
+    config.vm.box = "bento/ubuntu-24.04"
+    # config.vm.box_version = "202407.23.0"
+
+    # config.vm.box = "generic/ubuntu2404"      # non-existent
     # config.vm.box = "generic-x64/ubuntu2310"   # connection refused (libvirt error)
     # config.vm.box = "generic-x64/ubuntu2304"  # 
-    # config.vm.box = "generic/ubuntu2204"      # 
+    #config.vm.box = "generic/ubuntu2204"      # 
     # config.vm.box = "generic/ubuntu2004"      # 
     # config.vm.box = "rockylinux/9"            # 
 
@@ -15,7 +19,7 @@ Vagrant.configure("2") do |config|
     # growfs server
 
     # config.vm.box = "generic/debian10"        # panic: user: unknown userid 64342
-    config.vm.box = "generic/debian11"        # 
+    # config.vm.box = "generic/debian11"        # 
     # config.vm.box = "generic/debian12"        # 
     # config.vm.box = "generic-x64/fedora39"
     # config.vm.box = "generic-x64/fedora38"    # 

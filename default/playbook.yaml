@@ -7,21 +7,34 @@
       when: ansible_os_family == "Debian"
       block:
         - name: Install playbook dependencies
-          ansible.builtin.package:
+          ansible.builtin.apt:
+            update_cache: true
             name:
               - gnupg
             state: present
     - name: Set up yum repo
       when: ansible_os_family == "RedHat"
       block:
-        - meta: noop
+        - name: Configure OpenZiti RPM Repo
+          ansible.builtin.yum_repository:
+            name: OpenZitiTest
+            description: OpenZiti Test
+            baseurl: >-
+              https://packages.openziti.org/zitipax-openziti-rpm-test/redhat/$basearch
+            enabled: 'yes'
+            gpgkey: >-
+              https://packages.openziti.org/zitipax-openziti-rpm-test/redhat/$basearch/repodata/repomd.xml.key
+            repo_gpgcheck: 'yes'
+            gpgcheck: 'no'
 
-# - name: Install zrok-share package
-#   gather_facts: false
-#   hosts: all 
-#   become: true
-#   tasks:
-#   - name: Install zrok-share
-#     ansible.builtin.package:
-#       name: zrok-share
-#       state: present
+        - name: Update yum cache
+          ansible.builtin.yum:
+            update_cache: true
+
+    - name: Install extra packages
+      ansible.builtin.package:
+        name:
+          - tree
+          - vim
+          - git
+        state: present
