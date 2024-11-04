@@ -140,11 +140,6 @@
             service:
               enabled: true
               type: ClusterIP
-            altIngress:
-              advertisedHost: "{{ release_name }}-alt.{{ ansible_default_ipv4.address }}.sslip.io"
-              enabled: true
-              ingressClassName: traefik
-              annotations: {}
           webBindingPki:
             altServerCerts:
               - mode: certManager
