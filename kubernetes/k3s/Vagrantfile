@@ -2,6 +2,8 @@
 Vagrant.configure("2") do |config|
     config.vm.provider :libvirt do |libvirt|
         libvirt.machine_virtual_size = 128
+        libvirt.memory = 8192 # Amount of memory in MB
+        libvirt.cpus = 8 # Number of CPUs
     end
 
     config.vm.box = "bento/ubuntu-24.04"
@@ -30,13 +32,12 @@ Vagrant.configure("2") do |config|
 
     config.vm.provision "ansible", run: "once" do |ansible|
         ansible.verbose = "vvv"
-        # ansible.verbose = "v"
         ansible.playbook = "playbook.yaml"
         # ansible.extra_vars = { ansible_python_interpreter: "/usr/bin/python3" }
     end
 
     # Docker provisioner configuration
-    config.vm.provision :docker
+    # config.vm.provision :docker
 
     # config.vm.provision "shell", inline: <<-SHELL
     #     # Install Docker Compose

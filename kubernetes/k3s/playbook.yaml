@@ -1,0 +1,202 @@
+- name: Install k3s
+  gather_facts: true
+  hosts: all
+  become: true
+  collections:
+    - kubernetes.core
+  vars:
+    release_name: ctrl1
+    release_namespace: ziti
+  tasks:
+    - name: Set up apt repo
+      when: ansible_os_family == "Debian"
+      block:
+        - name: Install playbook dependencies
+          ansible.builtin.apt:
+          args:
+            update_cache: true
+            name:
+              - gnupg
+            state: present
+    - name: Set up yum repo
+      when: ansible_os_family == "RedHat"
+      block:
+        - name: Update yum cache
+          ansible.builtin.yum:
+          args:
+            update_cache: true
+
+    - name: Install extra packages
+      ansible.builtin.package:
+      args:
+        name:
+          - tree
+          - vim
+          - python3-kubernetes
+        state: present
+
+    - name: Copy Install Script
+      ansible.builtin.copy:
+      args:
+        src: single-k3s.bash
+        dest: /usr/local/bin/k3s.bash
+        mode: u=rwx,go=rx
+        owner: root
+        group: root
+
+    - name: Install k3s
+      ansible.builtin.command: /usr/local/bin/k3s.bash
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Slurp kubeconfig
+      ansible.builtin.slurp:
+      args:
+        src: /etc/rancher/k3s/k3s.yaml
+      register: kubeconfig_b64
+
+    - name: Decode kubeconfig
+      ansible.builtin.set_fact:
+      args:
+        kubeconfig_local: "{{ kubeconfig_b64.content | b64decode | from_yaml }}"
+
+    - name: Define the remote kube api server address
+      ansible.builtin.set_fact:
+        kubeconfig_remote:
+          clusters:
+            - name: default
+              cluster:
+                server: https://{{ ansible_default_ipv4.address }}:6443
+                certificate-authority-data: >-
+                  {{
+                    kubeconfig_local.clusters
+                    | selectattr('name', 'equalto', 'default')
+                    | map(attribute='cluster')
+                    | map(attribute='certificate-authority-data')
+                    | first
+                  }}
+
+    - name: Transform the server value only for the cluster with name=default
+      ansible.builtin.set_fact:
+      args:
+        kubeconfig: "{{ kubeconfig_local | combine(kubeconfig_remote) }}"
+
+    - name: Save kubeconfig with remote server address
+      delegate_to: localhost
+      become: false
+      ansible.builtin.copy:
+      args:
+        content: "{{ kubeconfig | to_nice_yaml }}"
+        dest: kubeconfig.yaml
+        mode: '0600'
+
+    - name: Get Helm Install Script
+      ansible.builtin.get_url:
+      args:
+        url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        dest: /tmp/get-helm-3.sh
+        mode: '0755'
+
+    - name: Run Helm Install Script
+      ansible.builtin.command: /tmp/get-helm-3.sh
+      args:
+        creates: /usr/local/bin/helm
+
+    - name: Add helm repo
+      kubernetes.core.helm_repository:
+      args:
+        name: openziti
+        repo_url: https://openziti.io/helm-charts
+
+    - name: Fetch CRDs
+      ansible.builtin.uri:
+      args:
+        url: "{{ item }}"
+        return_content: true
+      loop:
+        - https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.crds.yaml
+        - https://raw.githubusercontent.com/cert-manager/trust-manager/v0.7.0/deploy/crds/trust.cert-manager.io_bundles.yaml
+      register: crds
+
+    - name: Install CRDs
+      kubernetes.core.k8s:
+      args:
+        state: present
+        kubeconfig: "{{ kubeconfig }}"
+        definition: "{{ item.content }}"
+      loop: "{{ crds.results }}"
+
+    - name: Install Ziti Controller Chart
+      kubernetes.core.helm:
+      args:
+        kubeconfig: "{{ kubeconfig }}"
+        name: "{{ release_name }}"
+        chart_ref: openziti/ziti-controller
+        release_namespace: "{{ release_namespace }}"
+        create_namespace: true
+        values:
+          clientApi:
+            advertisedHost: "{{ release_name }}-client.{{ ansible_default_ipv4.address }}.sslip.io"
+            service:
+              enabled: true
+              type: ClusterIP
+          webBindingPki:
+            altServerCerts:
+              - mode: certManager
+                secretName: ziti-controller-alt-server-cert
+                dnsNames:
+                  - "{{ release_name }}-alt.{{ ansible_default_ipv4.address }}.sslip.io"
+                issuerRef:
+                  group: cert-manager.io
+                  kind: Issuer
+                  name: "{{ release_name }}-controller-web-intermediate-issuer"
+                mountPath: /etc/ziti/alt-server-cert
+          image:
+            additionalArgs:
+              - --verbose
+          managementApi:
+            advertisedHost: "{{ release_name }}-mgmt.{{ ansible_default_ipv4.address }}.sslip.io"
+            advertisedPort: 443
+            containerPort: 1281
+            service:
+              enabled: true
+              type: ClusterIP
+          cert-manager:
+            enabled: true
+          trust-manager:
+            enabled: true
+            app:
+              trust:
+                namespace: "{{ release_namespace }}"
+
+    - name: Deploy IngressRouteTCP Resources
+      kubernetes.core.k8s:
+      loop:
+        - name: client
+          host: "{{ release_name }}-client.{{ ansible_default_ipv4.address }}.sslip.io"
+          service: "{{ release_name }}-controller-client"
+        - name: alt
+          host: "{{ release_name }}-alt.{{ ansible_default_ipv4.address }}.sslip.io"
+          service: "{{ release_name }}-controller-client"
+        - name: mgmt
+          host: "{{ release_name }}-mgmt.{{ ansible_default_ipv4.address }}.sslip.io"
+          service: "{{ release_name }}-controller-mgmt"
+      args:
+        state: present
+        kubeconfig: "{{ kubeconfig }}"
+        definition:
+          apiVersion: traefik.containo.us/v1alpha1
+          kind: IngressRouteTCP
+          metadata:
+            name: "{{ release_name }}-{{ item.name }}-ingress"
+            namespace: "{{ release_namespace }}"
+          spec:
+            entryPoints:
+              - websecure
+            routes:
+              - match: HostSNI(`{{ item.host }}`)
+                services:
+                  - name: "{{ item.service }}"
+                    port: 443
+            tls:
+              passthrough: true
