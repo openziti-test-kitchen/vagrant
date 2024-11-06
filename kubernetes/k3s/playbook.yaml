@@ -118,20 +118,6 @@
         - name: traefik
           repo_url: https://traefik.github.io/charts
 
-    # - name: Ensure parent directory exists
-    #   ansible.builtin.file:
-    #   args:
-    #     path: /var/lib/rancher/k3s/server/manifests
-    #     state: directory
-    #     mode: '0755'
-
-    # - name: Install Traefik Customizations
-    #   ansible.builtin.copy:
-    #   args:
-    #     dest: /var/lib/rancher/k3s/server/manifests/traefik-config.yaml
-    #     content: "{{ traefik_config | to_yaml }}"
-    #     mode: '0644'
-
     - name: Fetch CRDs and Traefik RBAC for Gateway API
       ansible.builtin.uri:
       args:
@@ -229,29 +215,6 @@
 
     - name: Deploy Gateway API Resources
       block:
-        # - name: Deploy Gateway
-        #   kubernetes.core.k8s:
-        #   args:
-        #     state: present
-        #     kubeconfig: "{{ kubeconfig }}"
-        #     definition:
-        #       apiVersion: gateway.networking.k8s.io/v1
-        #       kind: Gateway
-        #       metadata:
-        #         name: traefik-gateway
-        #         namespace: "{{ release_namespace }}"
-        #       spec:
-        #         gatewayClassName: traefik
-        #         listeners:
-        #           - name: "{{ release_name }}"
-        #             protocol: TLS
-        #             port: "{{ advertised_port }}"
-        #             tls:
-        #               mode: Passthrough
-        #             allowedRoutes:
-        #               namespaces:
-        #                 from: Same
-
         - name: Deploy TLSRoutes
           kubernetes.core.k8s:
           loop:
