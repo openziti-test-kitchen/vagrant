@@ -2,11 +2,10 @@
   gather_facts: true
   hosts: all
   become: true
-  collections:
-    - kubernetes.core
   vars:
     release_name: ctrl1
     release_namespace: ziti
+    advertised_port: 1280
   tasks:
     - name: Set up apt repo
       when: ansible_os_family == "Debian"
@@ -45,50 +44,56 @@
         group: root
 
     - name: Install k3s
-      ansible.builtin.command: /usr/local/bin/k3s.bash
+      ansible.builtin.command: >
+        /usr/local/bin/k3s.bash
+        --write-kubeconfig-mode=0660
+        --write-kubeconfig-group=vagrant
+        --disable=traefik
       args:
         creates: /usr/local/bin/k3s
 
-    - name: Slurp kubeconfig
-      ansible.builtin.slurp:
-      args:
-        src: /etc/rancher/k3s/k3s.yaml
-      register: kubeconfig_b64
+    - name: Save kubeconfig on localhost
+      block:
+        - name: Slurp kubeconfig
+          ansible.builtin.slurp:
+          args:
+            src: /etc/rancher/k3s/k3s.yaml
+          register: kubeconfig_b64
 
-    - name: Decode kubeconfig
-      ansible.builtin.set_fact:
-      args:
-        kubeconfig_local: "{{ kubeconfig_b64.content | b64decode | from_yaml }}"
+        - name: Decode kubeconfig
+          ansible.builtin.set_fact:
+          args:
+            kubeconfig_local: "{{ kubeconfig_b64.content | b64decode | from_yaml }}"
 
-    - name: Define the remote kube api server address
-      ansible.builtin.set_fact:
-        kubeconfig_remote:
-          clusters:
-            - name: default
-              cluster:
-                server: https://{{ ansible_default_ipv4.address }}:6443
-                certificate-authority-data: >-
-                  {{
-                    kubeconfig_local.clusters
-                    | selectattr('name', 'equalto', 'default')
-                    | map(attribute='cluster')
-                    | map(attribute='certificate-authority-data')
-                    | first
-                  }}
+        - name: Define the remote kube api server address
+          ansible.builtin.set_fact:
+            kubeconfig_remote:
+              clusters:
+                - name: default
+                  cluster:
+                    server: https://{{ ansible_default_ipv4.address }}:6443
+                    certificate-authority-data: >-
+                      {{
+                        kubeconfig_local.clusters
+                        | selectattr('name', 'equalto', 'default')
+                        | map(attribute='cluster')
+                        | map(attribute='certificate-authority-data')
+                        | first
+                      }}
 
-    - name: Transform the server value only for the cluster with name=default
-      ansible.builtin.set_fact:
-      args:
-        kubeconfig: "{{ kubeconfig_local | combine(kubeconfig_remote) }}"
+        - name: Transform the server value only for the cluster with name=default
+          ansible.builtin.set_fact:
+          args:
+            kubeconfig: "{{ kubeconfig_local | combine(kubeconfig_remote) }}"
 
-    - name: Save kubeconfig with remote server address
-      delegate_to: localhost
-      become: false
-      ansible.builtin.copy:
-      args:
-        content: "{{ kubeconfig | to_nice_yaml }}"
-        dest: kubeconfig.yaml
-        mode: '0600'
+        - name: Save kubeconfig with remote server address
+          delegate_to: localhost
+          become: false
+          ansible.builtin.copy:
+          args:
+            content: "{{ kubeconfig | to_nice_yaml }}"
+            dest: kubeconfig.yaml
+            mode: '0600'
 
     - name: Get Helm Install Script
       ansible.builtin.get_url:
@@ -102,13 +107,18 @@
       args:
         creates: /usr/local/bin/helm
 
-    - name: Add helm repo
+    - name: Add helm repos
       kubernetes.core.helm_repository:
       args:
-        name: openziti
-        repo_url: https://openziti.io/helm-charts
+        name: "{{ item.name }}"
+        repo_url: "{{ item.repo_url }}"
+      loop:
+        - name: openziti
+          repo_url: https://openziti.io/helm-charts
+        - name: traefik
+          repo_url: https://traefik.github.io/charts
 
-    - name: Fetch CRDs
+    - name: Fetch CRDs and Traefik RBAC for Gateway API
       ansible.builtin.uri:
       args:
         url: "{{ item }}"
@@ -116,6 +126,9 @@
       loop:
         - https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.crds.yaml
         - https://raw.githubusercontent.com/cert-manager/trust-manager/v0.7.0/deploy/crds/trust.cert-manager.io_bundles.yaml
+        - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+        - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/experimental-install.yaml
+        - https://raw.githubusercontent.com/traefik/traefik/v3.2/docs/content/reference/dynamic-configuration/kubernetes-gateway-rbac.yml
       register: crds
 
     - name: Install CRDs
@@ -125,6 +138,36 @@
         kubeconfig: "{{ kubeconfig }}"
         definition: "{{ item.content }}"
       loop: "{{ crds.results }}"
+
+    - name: Install Traefik Chart
+      kubernetes.core.helm:
+      args:
+        kubeconfig: "{{ kubeconfig }}"
+        name: traefik
+        chart_ref: traefik/traefik
+        release_namespace: kube-system
+        values:
+          ports:
+            ziti:
+              port: "{{ advertised_port }}"
+              exposedPort: "{{ advertised_port }}"
+              protocol: TCP
+              expose:
+                default: true
+          providers:
+            kubernetesGateway:
+              enabled: true
+              experimentalChannel: true
+          gateway:
+            name: traefik-gateway
+            listeners:
+              ziti:
+                protocol: TLS
+                port: "{{ advertised_port }}"
+                mode: Passthrough
+                namespacePolicy: All
+          additionalArguments:
+            - "--log.level=DEBUG"
 
     - name: Install Ziti Controller Chart
       kubernetes.core.helm:
@@ -137,13 +180,14 @@
         values:
           clientApi:
             advertisedHost: "{{ release_name }}-client.{{ ansible_default_ipv4.address }}.sslip.io"
+            advertisedPort: "{{ advertised_port }}"
             service:
               enabled: true
               type: ClusterIP
           webBindingPki:
             altServerCerts:
               - mode: certManager
-                secretName: ziti-controller-alt-server-cert
+                secretName: "{{ release_name }}-controller-alt-server-cert"
                 dnsNames:
                   - "{{ release_name }}-alt.{{ ansible_default_ipv4.address }}.sslip.io"
                 issuerRef:
@@ -156,7 +200,7 @@
               - --verbose
           managementApi:
             advertisedHost: "{{ release_name }}-mgmt.{{ ansible_default_ipv4.address }}.sslip.io"
-            advertisedPort: 443
+            advertisedPort: "{{ advertised_port }}"
             containerPort: 1281
             service:
               enabled: true
@@ -169,34 +213,39 @@
               trust:
                 namespace: "{{ release_namespace }}"
 
-    - name: Deploy IngressRouteTCP Resources
-      kubernetes.core.k8s:
-      loop:
-        - name: client
-          host: "{{ release_name }}-client.{{ ansible_default_ipv4.address }}.sslip.io"
-          service: "{{ release_name }}-controller-client"
-        - name: alt
-          host: "{{ release_name }}-alt.{{ ansible_default_ipv4.address }}.sslip.io"
-          service: "{{ release_name }}-controller-client"
-        - name: mgmt
-          host: "{{ release_name }}-mgmt.{{ ansible_default_ipv4.address }}.sslip.io"
-          service: "{{ release_name }}-controller-mgmt"
-      args:
-        state: present
-        kubeconfig: "{{ kubeconfig }}"
-        definition:
-          apiVersion: traefik.containo.us/v1alpha1
-          kind: IngressRouteTCP
-          metadata:
-            name: "{{ release_name }}-{{ item.name }}-ingress"
-            namespace: "{{ release_namespace }}"
-          spec:
-            entryPoints:
-              - websecure
-            routes:
-              - match: HostSNI(`{{ item.host }}`)
-                services:
-                  - name: "{{ item.service }}"
-                    port: 443
-            tls:
-              passthrough: true
+    - name: Deploy Gateway API Resources
+      block:
+        - name: Deploy TLSRoutes
+          kubernetes.core.k8s:
+          loop:
+            - name: client
+              host: "{{ release_name }}-client.{{ ansible_default_ipv4.address }}.sslip.io"
+              service: "{{ release_name }}-controller-client"
+            - name: alt
+              host: "{{ release_name }}-alt.{{ ansible_default_ipv4.address }}.sslip.io"
+              service: "{{ release_name }}-controller-client"
+            - name: mgmt
+              host: "{{ release_name }}-mgmt.{{ ansible_default_ipv4.address }}.sslip.io"
+              service: "{{ release_name }}-controller-mgmt"
+          args:
+            state: present
+            kubeconfig: "{{ kubeconfig }}"
+            definition:
+              apiVersion: gateway.networking.k8s.io/v1alpha2
+              kind: TLSRoute
+              metadata:
+                name: "{{ release_name }}-{{ item.name }}"
+                namespace: "{{ release_namespace }}"
+              spec:
+                parentRefs:
+                  - name: traefik-gateway
+                    namespace: kube-system
+                    kind: Gateway
+                    sectionName: ziti
+                hostnames:
+                  - "{{ item.host }}"
+                rules:
+                  - backendRefs:
+                      - name: "{{ item.service }}"
+                        namespace: "{{ release_namespace }}"
+                        port: "{{ advertised_port }}"

@@ -42,11 +42,10 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         fi
         curl -sfL https://get.k3s.io \
         | sudo INSTALL_K3S_EXEC="server" bash -s - \
-        --bind-address "${LOOPBACK}" \
-        --advertise-address "${LOOPBACK}" \
-        --node-ip "${LOOPBACK}" \
-        --cluster-cidr "${CLUSTER_CIDR}/16" \
-        --service-cidr "${SERVICE_CIDR}/16" \
-        --write-kubeconfig-mode 0660 \
-        --write-kubeconfig-group vagrant
+        --bind-address="${LOOPBACK}" \
+        --advertise-address="${LOOPBACK}" \
+        --node-ip="${LOOPBACK}" \
+        --cluster-cidr="${CLUSTER_CIDR}/16" \
+        --service-cidr="${SERVICE_CIDR}/16" \
+        "${@}"
 fi

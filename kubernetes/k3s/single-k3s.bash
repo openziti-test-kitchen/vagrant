@@ -7,7 +7,5 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         set -euxo pipefail
 
         curl -sfL https://get.k3s.io \
-        | sudo INSTALL_K3S_EXEC="server" bash -s - \
-        --write-kubeconfig-mode 0660 \
-        --write-kubeconfig-group vagrant
+        | sudo INSTALL_K3S_EXEC="server" bash -s - "${@}"
 fi
