@@ -3,9 +3,22 @@
   hosts: default
   become: true
   vars:
-    zet_version: 0.22.29
+    zet_version: 0.1.2700
 
   tasks:
+
+    - name: Install Test Packages
+      ansible.builtin.yum:
+        name: systemd-resolved
+        # disable_gpg_check: true
+        state: present
+
+    - name: Start Test Services
+      ansible.builtin.service:
+        name: systemd-resolved
+        state: started
+        enabled: true
+
     - name: Configure RPM Repository
       ansible.builtin.copy:
         dest: /etc/yum.repos.d/ziti-edge-tunnel.repo
@@ -15,7 +28,7 @@
         content: |
           [OpenZitiTunneler]
           name=OpenZitiTunneler
-          baseurl=https://packages.openziti.org/zitipax-openziti-rpm-stable/redhat9/$basearch
+          baseurl=https://packages.openziti.org/zitipax-openziti-rpm-test/redhat9/$basearch
           enabled=1
           gpgcheck=0
           gpgkey=https://packages.openziti.org/zitipax-openziti-rpm-stable/redhat9/$basearch/repodata/repomd.xml.key
@@ -30,7 +43,7 @@
 
     - name: Install Ziti Identity Enrollment Token
       ansible.builtin.copy:
-        src: ./ziti-id.jwt  # relative to playbook on Vagrant host/Ansible Controller
+        src: /home/kbingham/.local/state/miniziti/profiles/miniziti/identities/miniziti-client.jwt
         dest: /opt/openziti/etc/identities/ziti-id.jwt
         owner: root
         group: ziti
@@ -52,8 +65,8 @@
     #       - 1.1.1.1
     #     state: present
 
-    - name: raise the network manager connection
-      command: nmcli connection up "eth0"
+    # - name: raise the network manager connection
+    #   command: nmcli connection up "eth0"
 
     - name: Ensure Ziti Edge Tunnel is running
       ansible.builtin.pause:

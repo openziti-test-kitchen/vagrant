@@ -1,5 +1,5 @@
 
-# Install zrok on Ubuntu Jammy 22.04 with Vagrant
+# Install Ziti Edge Tunnel from the DEB repo as a Systemd Service on Ubuntu Noble 24.04 with Vagrant
 
 ## Prerequisites
 

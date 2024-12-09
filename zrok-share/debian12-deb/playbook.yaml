@@ -1,0 +1,53 @@
+- name: Set up zrok Package Repo
+  gather_facts: true
+  hosts: all
+  become: true
+  tasks:
+
+  # - name: Install Test Packages
+  #   ansible.builtin.yum:
+  #     name: systemd-resolved
+  #     # disable_gpg_check: true
+  #     state: present
+
+  # - name: Start Test Services
+  #   ansible.builtin.service:
+  #     name: systemd-resolved
+  #     state: started
+  #     enabled: true
+
+    - name: Copy RPM File
+      ansible.builtin.copy:
+        src: /home/kbingham/Sites/netfoundry/github/zrok/dist/zrok-share-0.0.43500~SNAPSHOT_347f8917-1.x86_64.rpm
+        dest: /tmp/zrok-share.rpm
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Install zrok-share RPM File
+      ansible.builtin.yum:
+        name: /tmp/zrok-share.rpm
+        disable_gpg_check: true
+        state: present
+
+  # - name: Copy env config from Ansible controller to target
+  #   copy:
+  #     dest: /opt/openziti/etc/zrok/zrok-share.env
+  #     src: /opt/openziti/etc/zrok/zrok-share.env
+
+  # - name: Enable and restart service
+  #   systemd:
+  #     name: zrok-share
+  #     enabled: yes
+  #     state: restarted
+  #     daemon_reload: yes
+
+  # - name: Wait for service
+  #   systemd:
+  #     name: zrok-share
+  #     state: started
+  #   register: service_status
+  #   until: service_status.status.ActiveState == 'active'
+  #   retries: 30
+  #   delay: 1
+  

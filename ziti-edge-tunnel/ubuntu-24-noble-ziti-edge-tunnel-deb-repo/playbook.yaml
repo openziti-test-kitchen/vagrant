@@ -12,7 +12,7 @@
 
     - name: Add specified repository into sources list
       ansible.builtin.apt_repository:
-        repo: deb https://packages.openziti.org/zitipax-openziti-deb-stable focal main
+        repo: deb https://packages.openziti.org/zitipax-openziti-deb-stable jammy main
         state: present
 
     - name: Install Ziti Edge Tunnel from DEB repo
