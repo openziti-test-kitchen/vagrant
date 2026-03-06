@@ -1,0 +1,3 @@
+---
+# Path to locally-built zrok2 packages (synced from host)
+zrok_dist_dir: /srv/zrok/dist

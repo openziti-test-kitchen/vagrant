@@ -1,0 +1,37 @@
+---
+# Router bootstrap is always non-interactive (answers via env file + env vars).
+# The interactive dimension only applies to the controller bootstrap.
+
+- name: Enable Ziti router bootstrap
+  ansible.builtin.lineinfile:
+    path: /opt/openziti/etc/router/service.env
+    regexp: "^ZITI_BOOTSTRAP="
+    line: ZITI_BOOTSTRAP=true
+
+- name: Supply Ziti router bootstrap answers
+  ansible.builtin.lineinfile:
+    path: /opt/openziti/etc/router/bootstrap.env
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    create: true
+    mode: "0600"
+  loop:
+    - key: ZITI_ENROLL_TOKEN
+      value: "/tmp/{{ ziti_router_name }}.jwt"
+    - key: ZITI_ROUTER_ADVERTISED_ADDRESS
+      value: "{{ ziti_router_address }}"
+    - key: ZITI_ROUTER_PORT
+      value: "{{ ziti_router_port }}"
+  no_log: true
+
+- name: Run Ziti router bootstrap (non-interactive)
+  ansible.builtin.command:
+    cmd: /opt/openziti/etc/router/bootstrap.bash
+    stdin: ""
+  environment:
+    VERBOSE: "1"
+    ZITI_ENROLL_TOKEN: "/tmp/{{ ziti_router_name }}.jwt"
+    ZITI_ROUTER_ADVERTISED_ADDRESS: "{{ ziti_router_address }}"
+    ZITI_ROUTER_PORT: "{{ ziti_router_port | string }}"
+  args:
+    creates: /var/lib/private/ziti-router/config.yml

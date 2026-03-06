@@ -1,0 +1,30 @@
+---
+- name: Deploy zrok2 server (Ubuntu 24.04, non-interactive, SQLite3)
+  gather_facts: true
+  hosts: all
+  become: true
+
+  vars:
+    ziti_ctrl_address: "ctrl1.{{ ansible_default_ipv4.address }}.sslip.io"
+    ziti_router_address: "router1.{{ ansible_default_ipv4.address }}.sslip.io"
+    ziti_cluster_trust_domain: "{{ ansible_default_ipv4.address }}.sslip.io"
+    ziti_admin_password: zitiadminpw123
+    ziti_cluster_node_name: ctrl1
+    ziti_ctrl_port: 1280
+    ziti_router_port: 3022
+    ziti_admin_user: admin
+    ziti_router_name: router1
+    ziti_bootstrap_mode: "{{ ziti_bootstrap_mode | default('noninteractive') }}"
+
+    zrok2_dns_zone: "zrok.{{ ansible_default_ipv4.address }}.sslip.io"
+    zrok2_admin_token: zrok2admintoken12345678901234
+    zrok2_ctrl_port: 18080
+    zrok2_store_type: "{{ zrok2_store_type | default('sqlite3') }}"
+
+    zrok_dist_dir: /srv/zrok/dist
+
+  roles:
+    - role: ../roles/ziti-prerequisites
+    - role: ../roles/zrok2-install
+    - role: ../roles/zrok2-bootstrap
+    - role: ../roles/zrok2-verify

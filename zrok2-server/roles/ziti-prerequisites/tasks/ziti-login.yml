@@ -1,0 +1,12 @@
+---
+- name: Log in to Ziti edge API
+  ansible.builtin.command:
+    cmd: >-
+      ziti edge login {{ ziti_ctrl_address }}:{{ ziti_ctrl_port }}
+      -y -u {{ ziti_admin_user }} -p {{ ziti_admin_password }}
+  register: ziti_login
+  changed_when: "'Token' in ziti_login.stdout"
+  retries: 5
+  delay: 3
+  until: ziti_login.rc == 0
+  no_log: true

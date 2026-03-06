@@ -1,0 +1,27 @@
+---
+- name: Find zrok2 DEB packages
+  ansible.builtin.find:
+    paths: "{{ zrok_dist_dir }}"
+    patterns:
+      - "zrok2_*_amd64.deb"
+      - "zrok2-controller_*_amd64.deb"
+      - "zrok2-frontend_*_amd64.deb"
+      - "zrok2-metrics_*_amd64.deb"
+    recurse: true
+  register: zrok_debs
+
+- name: Fail if no packages found
+  ansible.builtin.assert:
+    that:
+      - zrok_debs.files | length >= 4
+    fail_msg: >-
+      Expected at least 4 zrok2 .deb packages in {{ zrok_dist_dir }}.
+      Run './build.bash' in the zrok source directory first.
+
+- name: Install zrok2 DEB packages
+  ansible.builtin.apt:
+    deb: "{{ item.path }}"
+    state: present
+  loop: "{{ zrok_debs.files | sort(attribute='path') }}"
+  loop_control:
+    label: "{{ item.path | basename }}"

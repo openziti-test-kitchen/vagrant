@@ -1,0 +1,12 @@
+---
+# zrok2 bootstrap settings
+zrok2_ctrl_port: 18080
+zrok2_store_type: postgres
+zrok2_namespace_token: public
+
+# Required - must be set in playbook vars
+# zrok2_dns_zone:
+# zrok2_admin_token:
+# ziti_admin_password:  (from ziti-prerequisites)
+# ziti_ctrl_address:    (from ziti-prerequisites)
+# ziti_ctrl_port:       (from ziti-prerequisites)

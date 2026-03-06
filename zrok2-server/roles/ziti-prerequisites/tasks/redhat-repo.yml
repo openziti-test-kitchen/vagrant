@@ -1,0 +1,15 @@
+---
+- name: Configure OpenZiti RPM repository
+  ansible.builtin.copy:
+    dest: /etc/yum.repos.d/openziti.repo
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      [OpenZiti]
+      name=OpenZiti
+      baseurl=https://packages.openziti.org/zitipax-openziti-rpm-stable/redhat/$basearch
+      enabled=1
+      gpgcheck=0
+      gpgkey=https://packages.openziti.org/zitipax-openziti-rpm-stable/redhat/$basearch/repodata/repomd.xml.key
+      repo_gpgcheck=1

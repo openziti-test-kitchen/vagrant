@@ -1,0 +1,8 @@
+---
+- name: Install zrok2 packages (Debian)
+  when: ansible_os_family == "Debian"
+  ansible.builtin.include_tasks: debian-install.yml
+
+- name: Install zrok2 packages (RedHat)
+  when: ansible_os_family == "RedHat"
+  ansible.builtin.include_tasks: redhat-install.yml

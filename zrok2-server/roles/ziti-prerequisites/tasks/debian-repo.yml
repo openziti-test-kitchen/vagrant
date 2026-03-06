@@ -1,0 +1,16 @@
+---
+- name: Add OpenZiti apt signing key
+  ansible.builtin.apt_key:
+    url: https://get.openziti.io/tun/package-repos.gpg
+    state: present
+
+- name: Add OpenZiti apt repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb https://packages.openziti.org/zitipax-openziti-deb-stable
+      {{ ansible_distribution_release }} main
+    state: present
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true

@@ -1,0 +1,4 @@
+---
+# zrok2 verification settings
+# zrok2_admin_token: set in playbook vars
+# zrok2_ctrl_port: set in playbook vars

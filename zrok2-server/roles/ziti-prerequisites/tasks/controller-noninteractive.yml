@@ -1,0 +1,40 @@
+---
+# Non-interactive Ziti controller bootstrap: supply all answers via env files,
+# then let systemd's ExecStartPre run the bootstrap automatically.
+
+- name: Enable Ziti controller bootstrap
+  ansible.builtin.lineinfile:
+    path: /opt/openziti/etc/controller/service.env
+    regexp: "^ZITI_BOOTSTRAP="
+    line: ZITI_BOOTSTRAP=true
+
+- name: Supply Ziti controller bootstrap answers
+  ansible.builtin.lineinfile:
+    path: /opt/openziti/etc/controller/bootstrap.env
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    create: true
+    mode: "0600"
+  loop:
+    - key: ZITI_CTRL_ADVERTISED_ADDRESS
+      value: "{{ ziti_ctrl_address }}"
+    - key: ZITI_CTRL_ADVERTISED_PORT
+      value: "{{ ziti_ctrl_port }}"
+    - key: ZITI_CLUSTER_NODE_NAME
+      value: "{{ ziti_cluster_node_name }}"
+    - key: ZITI_CLUSTER_TRUST_DOMAIN
+      value: "{{ ziti_cluster_trust_domain }}"
+    - key: ZITI_USER
+      value: "{{ ziti_admin_user }}"
+    - key: ZITI_PWD
+      value: "{{ ziti_admin_password }}"
+  no_log: true
+
+- name: Run Ziti controller bootstrap (non-interactive)
+  ansible.builtin.command:
+    cmd: /opt/openziti/etc/controller/bootstrap.bash
+    stdin: ""
+  environment:
+    VERBOSE: "1"
+  args:
+    creates: /var/lib/private/ziti-controller/config.yml

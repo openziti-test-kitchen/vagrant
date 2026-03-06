@@ -1,0 +1,38 @@
+---
+# Interactive Ziti controller bootstrap: simulate TTY prompts with
+# ansible.builtin.expect. The bootstrap script uses isInteractive() which
+# checks DEBIAN_FRONTEND != "noninteractive" and stdin is a TTY.
+
+- name: Install pexpect for interactive bootstrap
+  ansible.builtin.package:
+    name: python3-pexpect
+    state: present
+
+- name: Enable Ziti controller bootstrap
+  ansible.builtin.lineinfile:
+    path: /opt/openziti/etc/controller/service.env
+    regexp: "^ZITI_BOOTSTRAP="
+    line: ZITI_BOOTSTRAP=true
+
+# The bootstrap script prompts in this order (when all vars are unset):
+#   1. promptBootstrapCluster: "Create a new cluster ... [Y/n]: "
+#   2. promptClusterNodeName: "Enter the unique name ... [<default>]: "
+#   3. promptClusterTrustDomain: "Enter the trust domain ... [<default>]: "
+#   4. promptCtrlAddress: "Enter DNS name of the controller [<default>]: "
+#   5. promptCtrlPort: "Enter the controller port [1280]: "
+#   6. promptUser: "Enter the name of the default user [admin]: "
+#   7. promptPassword: "Set password for 'admin' [<generated>]: "
+- name: Run Ziti controller bootstrap (interactive)
+  ansible.builtin.expect:
+    command: /opt/openziti/etc/controller/bootstrap.bash
+    timeout: 120
+    responses:
+      "Create a new cluster": "Y"
+      "Enter the unique name": "{{ ziti_cluster_node_name }}"
+      "Enter the trust domain": "{{ ziti_cluster_trust_domain }}"
+      "Enter DNS name": "{{ ziti_ctrl_address }}"
+      "Enter the controller port": "{{ ziti_ctrl_port }}"
+      "Enter the name of the default user": "{{ ziti_admin_user }}"
+      "Set password for": "{{ ziti_admin_password }}"
+    creates: /var/lib/private/ziti-controller/config.yml
+  no_log: true

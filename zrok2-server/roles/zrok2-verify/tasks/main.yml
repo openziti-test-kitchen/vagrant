@@ -1,0 +1,56 @@
+---
+- name: Verify zrok2-controller is active
+  ansible.builtin.systemd:
+    name: zrok2-controller
+  register: ctrl_status
+  failed_when: ctrl_status.status.ActiveState != "active"
+
+- name: Verify zrok2-frontend is active
+  ansible.builtin.systemd:
+    name: zrok2-frontend
+  register: fe_status
+  failed_when: fe_status.status.ActiveState != "active"
+
+- name: Verify zrok2-metrics is active
+  ansible.builtin.systemd:
+    name: zrok2-metrics
+  register: metrics_status
+  failed_when: metrics_status.status.ActiveState != "active"
+
+- name: Wait for zrok2 controller API to respond
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ zrok2_ctrl_port }}/api/v1/version"
+    return_content: true
+  register: zrok2_version
+  until: zrok2_version.status == 200
+  retries: 15
+  delay: 2
+
+- name: List frontends
+  ansible.builtin.command:
+    cmd: zrok2 admin list frontends
+  environment:
+    ZROK2_API_ENDPOINT: "http://127.0.0.1:{{ zrok2_ctrl_port }}"
+    ZROK2_ADMIN_TOKEN: "{{ zrok2_admin_token }}"
+  register: frontend_list
+  changed_when: false
+
+- name: Verify public frontend exists
+  ansible.builtin.assert:
+    that:
+      - "'public' in frontend_list.stdout"
+    fail_msg: "No 'public' frontend found in frontend listing"
+
+- name: Print success summary
+  ansible.builtin.debug:
+    msg: |
+      ===================================================
+      zrok2 deployment verification PASSED
+      ===================================================
+      Controller:  active (port {{ zrok2_ctrl_port }})
+      Frontend:    active
+      Metrics:     active
+      DNS Zone:    {{ zrok2_dns_zone }}
+      Store Type:  {{ zrok2_store_type }}
+      Ziti:        {{ ziti_ctrl_address }}:{{ ziti_ctrl_port }}
+      ===================================================

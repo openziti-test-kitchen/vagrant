@@ -1,0 +1,29 @@
+---
+- name: Ensure Ziti controller service is active
+  ansible.builtin.systemd:
+    name: ziti-controller
+    state: started
+    enabled: true
+
+- name: Ensure Ziti router service is active
+  ansible.builtin.systemd:
+    name: ziti-router
+    state: started
+    enabled: true
+
+- name: Wait for router to come online
+  ansible.builtin.command:
+    cmd: ziti edge list edge-routers -j
+  register: router_online
+  changed_when: false
+  until: >-
+    (router_online.stdout | from_json).data | length > 0 and
+    (router_online.stdout | from_json).data[0].isOnline
+  retries: 20
+  delay: 3
+
+- name: Report Ziti infrastructure status
+  ansible.builtin.debug:
+    msg: >-
+      Ziti controller: {{ ziti_ctrl_address }}:{{ ziti_ctrl_port }},
+      Router {{ ziti_router_name }}: online

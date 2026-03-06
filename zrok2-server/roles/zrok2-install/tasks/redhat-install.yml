@@ -1,0 +1,25 @@
+---
+- name: Find zrok2 RPM packages
+  ansible.builtin.find:
+    paths: "{{ zrok_dist_dir }}"
+    patterns:
+      - "zrok2-[0-9]*.x86_64.rpm"
+      - "zrok2-controller-*.x86_64.rpm"
+      - "zrok2-frontend-*.x86_64.rpm"
+      - "zrok2-metrics-*.x86_64.rpm"
+    recurse: true
+  register: zrok_rpms
+
+- name: Fail if no packages found
+  ansible.builtin.assert:
+    that:
+      - zrok_rpms.files | length >= 4
+    fail_msg: >-
+      Expected at least 4 zrok2 .rpm packages in {{ zrok_dist_dir }}.
+      Run './build.bash' in the zrok source directory first.
+
+- name: Install zrok2 RPM packages
+  ansible.builtin.yum:
+    name: "{{ zrok_rpms.files | map(attribute='path') | list }}"
+    disable_gpg_check: true
+    state: present

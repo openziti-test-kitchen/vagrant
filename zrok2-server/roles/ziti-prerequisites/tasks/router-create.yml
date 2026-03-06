@@ -1,0 +1,19 @@
+---
+- name: Check if edge router already exists
+  ansible.builtin.command:
+    cmd: ziti edge list edge-routers 'name="{{ ziti_router_name }}"' -j
+  register: router_check
+  changed_when: false
+
+- name: Create edge router in Ziti
+  ansible.builtin.command:
+    cmd: >-
+      ziti edge create edge-router {{ ziti_router_name }}
+      --jwt-output-file /tmp/{{ ziti_router_name }}.jwt
+      --tunneler-enabled
+  when: (router_check.stdout | from_json).data | length == 0
+
+- name: Read router enrollment JWT
+  ansible.builtin.slurp:
+    src: "/tmp/{{ ziti_router_name }}.jwt"
+  register: router_jwt

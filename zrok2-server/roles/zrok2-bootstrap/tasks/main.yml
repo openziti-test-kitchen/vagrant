@@ -1,0 +1,32 @@
+---
+# The zrok2 bootstrap script is always non-interactive: it uses
+# ${VAR:?message} for required vars and has no TTY prompts.
+
+- name: Ensure ziti edge login is active
+  ansible.builtin.command:
+    cmd: >-
+      ziti edge login {{ ziti_ctrl_address }}:{{ ziti_ctrl_port }}
+      -y -u {{ ziti_admin_user }} -p {{ ziti_admin_password }}
+  changed_when: false
+  no_log: true
+
+- name: Run zrok2 bootstrap script
+  ansible.builtin.command:
+    cmd: /srv/zrok/nfpm/zrok2-bootstrap.bash
+  environment:
+    ZROK2_DNS_ZONE: "{{ zrok2_dns_zone }}"
+    ZROK2_ADMIN_TOKEN: "{{ zrok2_admin_token }}"
+    ZITI_API_ENDPOINT: "https://{{ ziti_ctrl_address }}:{{ ziti_ctrl_port }}"
+    ZITI_ADMIN_USER: "{{ ziti_admin_user }}"
+    ZITI_ADMIN_PASSWORD: "{{ ziti_admin_password }}"
+    ZROK2_STORE_TYPE: "{{ zrok2_store_type }}"
+    ZROK2_CTRL_PORT: "{{ zrok2_ctrl_port | string }}"
+  args:
+    creates: /etc/zrok2/ctrl.yml
+  register: bootstrap_result
+  no_log: true
+
+- name: Show bootstrap output
+  ansible.builtin.debug:
+    var: bootstrap_result.stdout_lines
+  when: bootstrap_result is changed

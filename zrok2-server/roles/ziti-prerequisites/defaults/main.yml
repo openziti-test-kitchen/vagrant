@@ -1,0 +1,18 @@
+---
+# Ziti controller settings
+ziti_ctrl_port: 1280
+ziti_cluster_node_name: ctrl1
+ziti_admin_user: admin
+ziti_admin_password: zitiadminpw123
+
+# Ziti router settings
+ziti_router_name: router1
+ziti_router_port: 3022
+
+# Bootstrap mode: "noninteractive" or "interactive"
+ziti_bootstrap_mode: noninteractive
+
+# Derived addresses (override in playbook vars using ansible_default_ipv4)
+# ziti_ctrl_address: set in playbook
+# ziti_router_address: set in playbook
+# ziti_cluster_trust_domain: set in playbook

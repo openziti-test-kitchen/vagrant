@@ -1,0 +1,36 @@
+---
+- name: Set up OpenZiti package repository
+  ansible.builtin.include_tasks: "{{ 'debian-repo.yml' if ansible_os_family == 'Debian' else 'redhat-repo.yml' }}"
+
+- name: Install OpenZiti packages
+  ansible.builtin.package:
+    name:
+      - openziti
+      - openziti-controller
+      - openziti-router
+    state: present
+
+- name: Bootstrap Ziti controller
+  ansible.builtin.include_tasks: "controller-{{ ziti_bootstrap_mode }}.yml"
+
+- name: Wait for Ziti controller to be ready
+  ansible.builtin.uri:
+    url: "https://{{ ziti_ctrl_address }}:{{ ziti_ctrl_port }}/edge/client/v1/version"
+    validate_certs: false
+    return_content: true
+  register: ctrl_version
+  until: ctrl_version.status == 200
+  retries: 30
+  delay: 2
+
+- name: Log in to Ziti edge
+  ansible.builtin.include_tasks: ziti-login.yml
+
+- name: Create edge router and get enrollment token
+  ansible.builtin.include_tasks: router-create.yml
+
+- name: Bootstrap Ziti router
+  ansible.builtin.include_tasks: router.yml
+
+- name: Verify Ziti infrastructure
+  ansible.builtin.include_tasks: verify.yml
