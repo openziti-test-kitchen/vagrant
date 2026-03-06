@@ -1,0 +1,5 @@
+---
+collections:
+  - name: community.openziti
+    source: /srv/openziti-ansible-collection/community.openziti
+    type: dir

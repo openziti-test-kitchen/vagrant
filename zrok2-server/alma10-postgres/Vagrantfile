@@ -1,0 +1,36 @@
+Vagrant.configure("2") do |config|
+    config.vm.provider :libvirt do |libvirt|
+        libvirt.machine_virtual_size = 40
+        libvirt.memory = 4096
+        libvirt.cpus = 4
+    end
+
+    config.vm.network "private_network",
+        ip: "192.168.121.62",
+        libvirt__network_name: "vagrant-libvirt",
+        libvirt__dhcp_enabled: false,
+        libvirt__forward_mode: "nat"
+
+    config.vm.box = "almalinux/10"
+
+    config.vm.synced_folder ENV.fetch("ZROK_SOURCE", "#{ENV['HOME']}/Sites/netfoundry/github/zrok"),
+        "/srv/zrok",
+        type: "rsync",
+        rsync__exclude: [".git/", "node_modules/", ".cache/", "website/"]
+
+    config.vm.synced_folder ENV.fetch("OPENZITI_COLLECTION",
+        "#{ENV['HOME']}/Sites/netfoundry/github/openziti-ansible-collection"),
+        "/srv/openziti-ansible-collection",
+        type: "rsync",
+        rsync__exclude: [".git/"]
+
+    config.vm.provision "ansible", run: "once" do |ansible|
+        ansible.verbose = "v"
+        ansible.playbook = "playbook.yaml"
+        ansible.galaxy_role_file = "../requirements.yml"
+        ansible.galaxy_command = "ansible-galaxy collection install -r %{role_file} -p %{roles_path} --force"
+        ansible.extra_vars = {
+            zrok2_store_type: "postgres",
+        }
+    end
+end
